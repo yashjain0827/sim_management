@@ -1,0 +1,27 @@
+.sidebar .MuiDrawer-paper{
+    /* background-color:rgb(29 96 139); */
+     background-image: linear-gradient(rgb(30 96 139), rgb(14 57 115));
+     width:4rem;
+  }
+  .list__items{
+      border-radius: 8px !important;
+  }
+  .list__items.active{
+      background-color: #43ACF1;
+      border-radius: 8px;
+  }
+  .list__items:hover{
+      background-color: #43ACF1 !important;
+      transition: all 0.5s ease;
+  }
+  ul.menu li{
+      padding: 3px 5px;
+  }
+  .profile {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin: 10px 7px !important;
+      color: #fff;
+      font-size: 18px !important;
+  }

@@ -1,0 +1,18 @@
+.AddTableContainer{
+    display: flex;
+    justify-content:space-between;
+    height: 6vh;
+    align-items: center;
+    padding: 0 10px;
+    font-weight: 700;
+    border-radius: 8px;
+}
+.TableContainer{
+    margin: 10px 0;
+    padding: 15px 0;
+    width:98%;
+    margin: auto;
+}
+.AddTableContainer .boxHeaderValue{
+    color:#636363;
+}
