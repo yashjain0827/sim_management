@@ -9,17 +9,16 @@
 //   Grid,
 //   Paper,
 //   Table,
+//   TableBody,
 //   TableCell,
 //   TableContainer,
 //   TableHead,
 //   TableRow,
 //   Typography,
 // } from "@mui/material";
-// import { DashboardAction } from "../actions/dashboard";
+// import { SubscriptionAction } from "../actions/subscription";
 // import readXlsxFile from "read-excel-file";
 // import subExpirySample from "../../SubscriptionExpirySample.xlsx";
-// import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-// import CancelIcon from "@mui/icons-material/Cancel";
 // import moment from "moment";
 
 // export default function ImportExcel({
@@ -35,9 +34,7 @@
 //   const [fullWidth, setFullWidth] = React.useState(true);
 //   const [maxWidth, setMaxWidth] = React.useState("md");
 //   const [multiVehicles, setMultiVehicles] = React.useState([]);
-//   const [siteId, setSiteId] = React.useState("");
 //   const [count, setCount] = React.useState(0);
-//   const [vaendorId, setVendorId] = React.useState([]);
 //   const [file, setFile] = React.useState();
 //   const [show, setShow] = React.useState(false);
 
@@ -48,36 +45,35 @@
 //     setShow(false);
 //     setMultiVehicles([]);
 //   };
+
 //   const handleUpdate = () => {
-//     // addVehicle(multiVehicles[0], 0);
 //     addVehicle(multiVehicles);
 //   };
-//   var vendor = [];
-//   const addVehicle = (value, index) => {
-//     const data = multiVehicles;
-//     DashboardAction.ImportExcel(data).then((response) => {
+
+//   const addVehicle = (data) => {
+//     SubscriptionAction.importExcel(data).then((response) => {
 //       if (response !== null) {
 //         setShow(true);
-//         // alert(response.message)
-//         setMultiVehicles(response && response.data);
-//         const count =
-//           response.data && response.data.filter((val) => val.isUpdated == true);
-//         setCount(count && count.length);
+//         setMultiVehicles(response.data);
+//         const updatedCount = response.data.filter(
+//           (val) => val.isUpdated
+//         ).length;
+//         setCount(updatedCount);
 //       } else {
 //         setMultiVehicles([]);
 //       }
 //       checkCount();
 //     });
 //   };
+
 //   const overRideUpdate = () => {
-//     const data = multiVehicles;
-//     DashboardAction.overRideUpdateImport(data).then((response) => {
+//     DashboardAction.overRideUpdateImport(multiVehicles).then((response) => {
 //       if (response !== null) {
-//         // alert(response.message)
-//         setMultiVehicles(response && response.data);
-//         const count =
-//           response.data && response.data.filter((val) => val.isUpdated == true);
-//         setCount(count && count.length);
+//         setMultiVehicles(response.data);
+//         const updatedCount = response.data.filter(
+//           (val) => val.isUpdated
+//         ).length;
+//         setCount(updatedCount);
 //       } else {
 //         setMultiVehicles([]);
 //       }
@@ -86,41 +82,46 @@
 //   };
 
 //   const checkCount = () => {
-//     // const check =multiVehicles &&  multiVehicles.filter((val) => val.isUpdated == true);
-//     // setCount(check && check.length);
+//     const updatedCount = multiVehicles.filter((val) => val.isUpdated).length;
+//     setCount(updatedCount);
 //   };
 
-//   let vehicleArray = [];
-//   const onFIleChange = () => {
-//     const input = document.getElementById("inputFile");
-//     setFile(input.files[0]);
-//     readXlsxFile(input.files[0]).then((rows) => {
-//       for (var i = 1; i < rows.length; i++) {
-//         // console.log(rows[i][0], "dghjk");
-//         let vehicleObj = {
-//           iccid: "",
-//           expiryDate: "",
-//           // success: "yes",
-//         };
+//   const onFileChange = (event) => {
+//     const inputFile = event.target.files[0];
+//     setFile(inputFile);
+//     readXlsxFile(inputFile).then((rows) => {
+//       const vehicleArray = rows.slice(1).map((row) => {
+//         let rawICCID = row[0];
+//         let rawDate = row[1];
+//         console.log("Raw Date:", rawDate);
 
-//         if (rows) {
-//           console.log(rows, "rows");
-//           vehicleObj.iccid = rows[i][0];
-//           vehicleObj.expiryDate = moment(rows[i][1]).format("DD-MM-YYYY");
+//         let expiryDate;
+//         let isValidDate = true;
+
+//         let iccid = rawICCID ? rawICCID.trim() : "";
+
+//         if (moment(rawDate, "DD/MM/YY", true).isValid()) {
+//           expiryDate = moment(rawDate, "DD/MM/YY").format("DD/MM/YYYY");
+//         } else if (moment(rawDate, "DD/MM/YYYY", true).isValid()) {
+//           expiryDate = moment(rawDate, "DD/MM/YYYY").format("DD/MM/YYYY");
+//         } else if (typeof rawDate === "number") {
+//           expiryDate = moment(
+//             new Date(Math.round((rawDate - 25569) * 86400 * 1000))
+//           ).format("DD/MM/YYYY");
+//         } else {
+//           console.error("Invalid Date:", rawDate);
+//           expiryDate = "Invalid Date";
+//           isValidDate = false;
 //         }
-//         // console.log(vehicleObj, "vehicleObj");
-//         vehicleArray.push(vehicleObj);
-//       }
-//       console.log(vehicleArray, "vehicleArray");
 
+//         return {
+//           iccid,
+//           expiryDate,
+//           isValidDate,
+//         };
+//       });
 //       setMultiVehicles(vehicleArray);
 //     });
-//     // document.getElementById("inputFile").value = "";
-//   };
-//   const closePop = () => {
-//     closeExcelImportModal();
-//     setShow(false);
-//     setMultiVehicles([]);
 //   };
 
 //   const handleClose = () => {
@@ -154,22 +155,9 @@
 //             </div>
 //           </div>
 //         </DialogTitle>
-
 //         <DialogContent dividers>
 //           <DialogContentText id="alert-dialog-description">
-//             <Grid
-//               // container
-//               // spacing={3}
-//               style={{ marginLeft: "10px", marginBottom: "2px" }}
-//             >
-//               <Grid>
-//                 {/* <div>
-//                   <a className="float-right" href={chargeSample} download>
-//                     Download Devices Excel Template
-//                   </a>
-//                 </div> */}
-//               </Grid>
-
+//             <Grid style={{ marginLeft: "10px", marginBottom: "2px" }}>
 //               <Grid item xs={4}>
 //                 {!show ? (
 //                   <>
@@ -184,15 +172,14 @@
 //                       <input
 //                         type="file"
 //                         id="inputFile"
-//                         onChange={onFIleChange}
+//                         onChange={onFileChange}
 //                       />
-//                     </Typography>{" "}
+//                     </Typography>
 //                   </>
 //                 ) : (
 //                   ""
 //                 )}
 //               </Grid>
-
 //               <Grid item xs={4}>
 //                 <Typography
 //                   className="font14 greyfirstheading"
@@ -201,8 +188,7 @@
 //                 >
 //                   {show ? (
 //                     <div className="mt-4">
-//                       Vehicle Upload SuccessFully {count}/
-//                       {multiVehicles && multiVehicles.length}{" "}
+//                       Vehicle Upload SuccessFully {count}/{multiVehicles.length}
 //                     </div>
 //                   ) : (
 //                     ""
@@ -214,34 +200,35 @@
 //               <TableContainer component={Paper} elevation={1}>
 //                 <Table size="small" aria-label="a dense table">
 //                   <TableHead style={{ background: "rgb(14 57 115 / 86%)" }}>
-//                     <TableCell style={{ color: "#fff", fontWeight: "bold" }}>
-//                       S.No
-//                     </TableCell>
-//                     <TableCell style={{ color: "#fff", fontWeight: "bold" }}>
-//                       ICCID
-//                     </TableCell>
-//                     <TableCell style={{ color: "#fff", fontWeight: "bold" }}>
-//                       ExpiryDate
-//                     </TableCell>
+//                     <TableRow>
+//                       <TableCell style={{ color: "#fff", fontWeight: "bold" }}>
+//                         S.No
+//                       </TableCell>
+//                       <TableCell style={{ color: "#fff", fontWeight: "bold" }}>
+//                         ICCID
+//                       </TableCell>
+//                       <TableCell style={{ color: "#fff", fontWeight: "bold" }}>
+//                         Expiry Date
+//                       </TableCell>
+//                     </TableRow>
 //                   </TableHead>
-//                   {multiVehicles &&
-//                     multiVehicles.length > 0 &&
-//                     multiVehicles.map((val, ind) => {
-//                       return (
-//                         <>
-//                           <TableRow>
-//                             <TableCell>{ind + 1}</TableCell>
-//                             <TableCell>{val.iccid ? val.iccid : ""}</TableCell>
-
-//                             <TableCell>
-//                               {val.expiryDate
-//                                 ? moment(val.expiryDate).format("DD-MM-YYYY")
-//                                 : "NA"}
-//                             </TableCell>
-//                           </TableRow>
-//                         </>
-//                       );
-//                     })}
+//                   <TableBody>
+//                     {multiVehicles.map((val, ind) => (
+//                       <TableRow key={ind}>
+//                         <TableCell>{ind + 1}</TableCell>
+//                         <TableCell>{val.iccid || ""}</TableCell>
+//                         <TableCell>
+//                           {val.isValidDate ? (
+//                             moment(val.expiryDate, "DD/MM/YYYY").format(
+//                               "DD/MM/YYYY"
+//                             )
+//                           ) : (
+//                             <span style={{ color: "red" }}>Invalid Date</span>
+//                           )}
+//                         </TableCell>
+//                       </TableRow>
+//                     ))}
+//                   </TableBody>
 //                 </Table>
 //               </TableContainer>
 //             </Paper>
@@ -249,8 +236,8 @@
 //         </DialogContent>
 //         <DialogActions>
 //           <Button onClick={handleCancel}>Cancel</Button>
-//           {show == false ? (
-//             <Button onClick={addVehicle} autoFocus>
+//           {!show ? (
+//             <Button onClick={() => addVehicle(multiVehicles)} autoFocus>
 //               Submit
 //             </Button>
 //           ) : (
@@ -275,102 +262,108 @@ import {
   Grid,
   Paper,
   Table,
+  TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
   Typography,
 } from "@mui/material";
-import { DashboardAction } from "../actions/dashboard";
+import { SubscriptionAction } from "../actions/subscription";
 import readXlsxFile from "read-excel-file";
 import subExpirySample from "../../SubscriptionExpirySample.xlsx";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import CancelIcon from "@mui/icons-material/Cancel";
 import moment from "moment";
 
 export default function ImportExcel({
   openModal,
   setOpenModal,
-  excelImport,
   closeExcelImportModal,
   setLoading,
-  showData,
-  siteListFilter,
-  vendorList,
 }) {
   const [fullWidth, setFullWidth] = React.useState(true);
   const [maxWidth, setMaxWidth] = React.useState("md");
-  const [multiVehicles, setMultiVehicles] = React.useState([]);
-  const [siteId, setSiteId] = React.useState("");
+  const [subscriptionICCIDExpiry, setSubscriptionICCIDExpiry] = React.useState(
+    []
+  );
   const [count, setCount] = React.useState(0);
-  const [vaendorId, setVendorId] = React.useState([]);
   const [file, setFile] = React.useState();
   const [show, setShow] = React.useState(false);
-
-  console.log(multiVehicles, "multiVehicles");
+  const [responseMessage, setResponseMessage] = React.useState("");
+  const loggedInUserData = JSON.parse(localStorage.getItem("data"));
 
   const handleCancel = () => {
     closeExcelImportModal();
     setShow(false);
-    setMultiVehicles([]);
+    setSubscriptionICCIDExpiry([]);
   };
 
-  const handleUpdate = () => {
-    addVehicle(multiVehicles);
-  };
+  const iccidChangeExpiryDate = () => {
+    const data = subscriptionICCIDExpiry.map((item) => ({
+      iccid: item.iccid,
+      expiryDate: item.expiryDate,
+    }));
 
-  const addVehicle = (data) => {
-    DashboardAction.ImportExcel(data).then((response) => {
+    const payload = {
+      userDetails: loggedInUserData,
+      iccidExpiryData: data,
+    };
+
+    SubscriptionAction.importExcel(payload).then((response) => {
       if (response !== null) {
         setShow(true);
-        setMultiVehicles(response.data);
-        const updatedCount = response.data.filter(
+        setSubscriptionICCIDExpiry(response.data || []);
+        setResponseMessage(response.message);
+        const updatedCount = (response.data || []).filter(
           (val) => val.isUpdated
         ).length;
         setCount(updatedCount);
       } else {
-        setMultiVehicles([]);
+        setSubscriptionICCIDExpiry([]);
+        setResponseMessage("Failed to update.");
       }
-      checkCount();
     });
-  };
-
-  const overRideUpdate = () => {
-    DashboardAction.overRideUpdateImport(multiVehicles).then((response) => {
-      if (response !== null) {
-        setMultiVehicles(response.data);
-        const updatedCount = response.data.filter(
-          (val) => val.isUpdated
-        ).length;
-        setCount(updatedCount);
-      } else {
-        setMultiVehicles([]);
-      }
-      checkCount();
-    });
-  };
-
-  const checkCount = () => {
-    const updatedCount = multiVehicles.filter((val) => val.isUpdated).length;
-    setCount(updatedCount);
   };
 
   const onFileChange = (event) => {
     const inputFile = event.target.files[0];
     setFile(inputFile);
     readXlsxFile(inputFile).then((rows) => {
-      const vehicleArray = rows.slice(1).map((row) => ({
-        iccid: row[0],
-        expiryDate: moment(row[1]).format("DD-MM-YYYY"),
-      }));
-      setMultiVehicles(vehicleArray);
+      const vehicleArray = rows.slice(1).map((row) => {
+        let rawICCID = row[0];
+        let rawDate = row[1];
+
+        let expiryDate;
+        let isValidDate = true;
+
+        let iccid = rawICCID ? rawICCID.trim() : "";
+
+        if (moment(rawDate, "DD/MM/YY", true).isValid()) {
+          expiryDate = moment(rawDate, "DD/MM/YY").format("DD/MM/YYYY");
+        } else if (moment(rawDate, "DD/MM/YYYY", true).isValid()) {
+          expiryDate = moment(rawDate, "DD/MM/YYYY").format("DD/MM/YYYY");
+        } else if (typeof rawDate === "number") {
+          expiryDate = moment(
+            new Date(Math.round((rawDate - 25569) * 86400 * 1000))
+          ).format("DD/MM/YYYY");
+        } else {
+          expiryDate = "Invalid Date";
+          isValidDate = false;
+        }
+
+        return {
+          iccid,
+          expiryDate,
+          isValidDate,
+        };
+      });
+      setSubscriptionICCIDExpiry(vehicleArray);
     });
   };
 
   const handleClose = () => {
     setOpenModal(false);
     setShow(false);
-    setMultiVehicles([]);
+    setSubscriptionICCIDExpiry([]);
   };
 
   return (
@@ -398,7 +391,6 @@ export default function ImportExcel({
             </div>
           </div>
         </DialogTitle>
-
         <DialogContent dividers>
           <DialogContentText id="alert-dialog-description">
             <Grid style={{ marginLeft: "10px", marginBottom: "2px" }}>
@@ -424,7 +416,6 @@ export default function ImportExcel({
                   ""
                 )}
               </Grid>
-
               <Grid item xs={4}>
                 <Typography
                   className="font14 greyfirstheading"
@@ -433,7 +424,8 @@ export default function ImportExcel({
                 >
                   {show ? (
                     <div className="mt-4">
-                      Vehicle Upload SuccessFully {count}/{multiVehicles.length}
+                      Vehicle Upload SuccessFully {count}/
+                      {subscriptionICCIDExpiry.length}
                     </div>
                   ) : (
                     ""
@@ -445,40 +437,54 @@ export default function ImportExcel({
               <TableContainer component={Paper} elevation={1}>
                 <Table size="small" aria-label="a dense table">
                   <TableHead style={{ background: "rgb(14 57 115 / 86%)" }}>
-                    <TableCell style={{ color: "#fff", fontWeight: "bold" }}>
-                      S.No
-                    </TableCell>
-                    <TableCell style={{ color: "#fff", fontWeight: "bold" }}>
-                      ICCID
-                    </TableCell>
-                    <TableCell style={{ color: "#fff", fontWeight: "bold" }}>
-                      Expiry Date
-                    </TableCell>
-                  </TableHead>
-                  {multiVehicles.map((val, ind) => (
-                    <TableRow key={ind}>
-                      <TableCell>{ind + 1}</TableCell>
-                      <TableCell>{val.iccid || ""}</TableCell>
-                      <TableCell>
-                        {val.expiryDate
-                          ? moment(val.expiryDate).format("DD-MM-YYYY")
-                          : "NA"}
+                    <TableRow>
+                      <TableCell style={{ color: "#fff", fontWeight: "bold" }}>
+                        S.No
+                      </TableCell>
+                      <TableCell style={{ color: "#fff", fontWeight: "bold" }}>
+                        ICCID
+                      </TableCell>
+                      <TableCell style={{ color: "#fff", fontWeight: "bold" }}>
+                        Expiry Date
                       </TableCell>
                     </TableRow>
-                  ))}
+                  </TableHead>
+                  <TableBody>
+                    {subscriptionICCIDExpiry.map((val, ind) => (
+                      <TableRow key={ind}>
+                        <TableCell>{ind + 1}</TableCell>
+                        <TableCell>{val.iccid || ""}</TableCell>
+                        <TableCell>
+                          {val.isValidDate ? (
+                            moment(val.expiryDate, "DD/MM/YYYY").format(
+                              "DD/MM/YYYY"
+                            )
+                          ) : (
+                            <span style={{ color: "red" }}>Invalid Date</span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
                 </Table>
               </TableContainer>
             </Paper>
+            {responseMessage && (
+              <Typography variant="body2">{responseMessage}</Typography>
+            )}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCancel}>Cancel</Button>
           {!show ? (
-            <Button onClick={() => addVehicle(multiVehicles)} autoFocus>
+            <Button onClick={iccidChangeExpiryDate} autoFocus>
               Submit
             </Button>
           ) : (
-            <Button onClick={overRideUpdate} autoFocus>
+            <Button
+              // onClick={overRideUpdate}
+              autoFocus
+            >
               Override Update
             </Button>
           )}
