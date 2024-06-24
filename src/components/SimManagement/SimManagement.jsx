@@ -30,6 +30,7 @@ import importExcelIcon from "../../img/Export Excel.svg";
 
 import debounce from "lodash/debounce";
 import { styled } from "@mui/material/styles";
+import ImportExcel from "./ImportExcel";
 
 const theme = createTheme({
   palette: {
@@ -217,6 +218,15 @@ export default function SimManagement() {
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [totalItem, setTotalItem] = useState(0);
+  const [openModal, setOpenModal] = useState(false);
+
+  const ExcelImportModal = () => {
+    setOpenModal(true);
+  };
+
+  const closeExcelImportModal = () => {
+    setOpenModal(false);
+  };
 
   const handleRowClick = (index) => {
     setOpenRowIndex(openRowIndex === index ? null : index);
@@ -403,6 +413,11 @@ export default function SimManagement() {
               </Paper>
             </Grid>
           </Grid>
+          <ImportExcel
+            openModal={openModal}
+            setOpenModal={setOpenModal}
+            closeExcelImportModal={closeExcelImportModal}
+          />
         </ThemeProvider>
       </Box>
     </div>
