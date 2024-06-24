@@ -16,7 +16,7 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
-import { SubscriptionAction } from "../actions/subscription";
+import { SimManagementAction } from "../actions/simManagement";
 import readXlsxFile from "read-excel-file";
 import subExpirySample from "../../SubscriptionExpirySample.xlsx";
 import moment from "moment";
@@ -71,7 +71,7 @@ export default function ImportExcel({
       deviceRenewalList: data,
     };
 
-    SubscriptionAction.importExcel(payload).then((response) => {
+    SimManagementAction.importExcel(payload).then((response) => {
       if (response !== null && response.data) {
         setShow(true);
         setSubscriptionICCIDExpiry(response.data || []);
@@ -254,7 +254,13 @@ export default function ImportExcel({
                   </TableHead>
                   <TableBody>
                     {subscriptionICCIDExpiry.map((val, ind) => (
-                      <TableRow key={ind}>
+                      <TableRow
+                        key={ind}
+                        style={{
+                          backgroundColor:
+                            val.updated === false ? "rgba(255,0,0,0.3)" : "",
+                        }}
+                      >
                         <TableCell>{ind + 1}</TableCell>
                         <TableCell>{val.iccid || val.iccidNo || ""}</TableCell>
                         <TableCell>
@@ -265,7 +271,7 @@ export default function ImportExcel({
                           ) : val.newExpiryDate ? (
                             moment(val.newExpiryDate).format("DD-MM-YYYY")
                           ) : (
-                            <span style={{ color: "red" }}>Invalid Date</span>
+                            <span>Invalid Date</span>
                           )}
                         </TableCell>
                         {hasUpdatedProperty && (

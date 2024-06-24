@@ -421,6 +421,7 @@ export default function SimManagement() {
             openModal={openModal}
             setOpenModal={setOpenModal}
             closeExcelImportModal={closeExcelImportModal}
+            setLoading={setLoading}
           />
         </ThemeProvider>
       </Box>
