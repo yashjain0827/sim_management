@@ -86,7 +86,7 @@ const ExportButtons = ({ index, onExcelDownload, onPdfDownload }) => (
 );
 
 const DetailRow = ({ detail, detailIndex }) => (
-  <TableRow>
+  <TableRow sx={{ backgroundColor: "#b3e0e5" }}>
     <TableCell>{detailIndex + 1}</TableCell>
     <TableCell>{detail.imeiNo}</TableCell>
     <TableCell>{detail.iccidNo}</TableCell>
@@ -104,7 +104,7 @@ const RequestRow = ({
   onPdfDownload,
 }) => (
   <>
-    <TableRow>
+    <TableRow sx={{ backgroundColor: "#b3e0e5" }}>
       <TableCell>{index + 1}</TableCell>
       <TableCell>{row.requestCode}</TableCell>
       <TableCell>{row.devices.length}</TableCell>
@@ -207,7 +207,7 @@ const exportToPdf = (data) => {
 };
 
 export default function SimManagement() {
-  const [openRowIndex, setOpenRowIndex] = useState(null);
+  const [openRowIndices, setOpenRowIndices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filteredRequests, setFilteredRequests] = useState([]);
   const [searchParams, setSearchParams] = useState({
@@ -220,7 +220,7 @@ export default function SimManagement() {
   const [totalItem, setTotalItem] = useState(0);
   const [openModal, setOpenModal] = useState(false);
 
-  const ExcelImportModal = () => {
+  const openExcelImportModal = () => {
     setOpenModal(true);
   };
 
@@ -229,7 +229,11 @@ export default function SimManagement() {
   };
 
   const handleRowClick = (index) => {
-    setOpenRowIndex(openRowIndex === index ? null : index);
+    setOpenRowIndices((prevOpenRowIndices) =>
+      prevOpenRowIndices.includes(index)
+        ? prevOpenRowIndices.filter((i) => i !== index)
+        : [...prevOpenRowIndices, index]
+    );
   };
 
   useEffect(() => {
@@ -304,7 +308,7 @@ export default function SimManagement() {
               </Grid>
               <Grid item xs={2}>
                 <IconButton
-                  onClick={() => hello()}
+                  onClick={openExcelImportModal}
                   aria-label="Export to Excel"
                 >
                   <img src={importExcelIcon} alt="Export to Excel" />
@@ -391,7 +395,7 @@ export default function SimManagement() {
                             key={index}
                             row={row}
                             index={index}
-                            isOpen={openRowIndex === index}
+                            isOpen={openRowIndices.includes(index)}
                             handleRowClick={handleRowClick}
                             onExcelDownload={onExcelDownload}
                             onPdfDownload={onPdfDownload}
