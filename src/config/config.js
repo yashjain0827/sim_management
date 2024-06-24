@@ -1,7 +1,7 @@
 const config = Object.freeze({
   // baseUrl: "https://productionstaging.nyggs.com/backend/",
-  // baseUrl: "http://192.168.12.48:8080/",
-  baseUrl: "http://192.168.12.55:8080/",
+  baseUrl: "http://192.168.12.48:8080/",
+  // baseUrl: "http://192.168.12.55:8080/",
   // baseUrl: "http://192.168.12.57:8080/",
 
   // baseUrl: "http://staging.watsoo.com:8085/watsoo-device-management/",

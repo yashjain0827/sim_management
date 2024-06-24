@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import axios from "axios";
 import LoadingComponent from "../CommonComponents/LoadingComponts";
 import {
@@ -16,13 +16,20 @@ import {
   Collapse,
   TablePagination,
   Grid,
+  TextField,
+  Button,
 } from "@mui/material";
 import { KeyboardArrowDown, KeyboardArrowUp } from "@mui/icons-material";
 import FileSaver from "file-saver";
-import XLSX from "json2xls";
+import * as XLSX from "xlsx";
 import jsPDF from "jspdf";
+import "jspdf-autotable";
 import exportExcelIcon from "../../img/Import Excel.svg";
-import exportPdfIcon from "../../img/Export PDF.svg";
+import exportPdfIcon from "../../img/Import PDF.svg";
+import importExcelIcon from "../../img/Export Excel.svg";
+
+import debounce from "lodash/debounce";
+import { styled } from "@mui/material/styles";
 
 const theme = createTheme({
   palette: {
@@ -32,32 +39,227 @@ const theme = createTheme({
   },
 });
 
+const StyledTableRow = styled(TableRow)(({ theme }) => ({
+  "&:nth-of-type(odd)": {
+    backgroundColor: theme.palette.action.hover,
+  },
+}));
+
+const StyledTableCell = styled(TableCell)(({ theme }) => ({
+  backgroundColor: "rgb(14 57 115 / 86%)",
+  color: "white",
+}));
+
+const BASE_URL = "http://192.168.12.48:8080/api/get/All/device_renewal_request";
+
+const fetchRequests = async (page, rowsPerPage, searchParams) => {
+  try {
+    const payload = {
+      pageNo: page,
+      pageSize: rowsPerPage,
+      fromDate: searchParams.fromdate,
+      toDate: searchParams.todate,
+      search: searchParams.requestcode,
+    };
+    const response = await axios.post(BASE_URL, payload);
+
+    return response.data;
+  } catch (error) {
+    console.error("Error fetching data", error);
+    throw error;
+  }
+};
+
+const ExportButtons = ({ index, onExcelDownload, onPdfDownload }) => (
+  <>
+    <IconButton
+      onClick={() => onExcelDownload(index)}
+      aria-label="Export to Excel"
+    >
+      <img src={exportExcelIcon} alt="Export to Excel" />
+    </IconButton>
+    <IconButton onClick={() => onPdfDownload(index)} aria-label="Export to PDF">
+      <img src={exportPdfIcon} alt="Export to PDF" />
+    </IconButton>
+  </>
+);
+
+const DetailRow = ({ detail, detailIndex }) => (
+  <TableRow>
+    <TableCell>{detailIndex + 1}</TableCell>
+    <TableCell>{detail.imeiNo}</TableCell>
+    <TableCell>{detail.iccidNo}</TableCell>
+    <TableCell>{new Date(detail.oldExpiryDate).toLocaleDateString()}</TableCell>
+    <TableCell>{new Date(detail.newExpiryDate).toLocaleDateString()}</TableCell>
+  </TableRow>
+);
+
+const RequestRow = ({
+  row,
+  index,
+  isOpen,
+  handleRowClick,
+  onExcelDownload,
+  onPdfDownload,
+}) => (
+  <>
+    <TableRow>
+      <TableCell>{index + 1}</TableCell>
+      <TableCell>{row.requestCode}</TableCell>
+      <TableCell>{row.devices.length}</TableCell>
+      <TableCell>{new Date(row.requestDate).toLocaleDateString()}</TableCell>
+      <TableCell>{row.createdBy}</TableCell>
+
+      <TableCell>
+        <ExportButtons
+          index={index}
+          onExcelDownload={onExcelDownload}
+          onPdfDownload={onPdfDownload}
+        />
+      </TableCell>
+      <TableCell>
+        <IconButton
+          onClick={() => handleRowClick(index)}
+          aria-label="Expand row"
+        >
+          {isOpen ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
+        </IconButton>
+      </TableCell>
+    </TableRow>
+    <TableRow>
+      <TableCell colSpan={7} style={{ paddingBottom: 0, paddingTop: 0 }}>
+        <Collapse in={isOpen} timeout="auto" unmountOnExit>
+          <Box margin={1}>
+            <Table size="small">
+              <TableHead>
+                <StyledTableRow>
+                  <StyledTableCell>S.No. </StyledTableCell>
+                  <StyledTableCell>IMEI Number</StyledTableCell>
+                  <StyledTableCell>ICCID Number</StyledTableCell>
+                  <StyledTableCell>Old Expiry Date</StyledTableCell>
+                  <StyledTableCell>New Expiry Date</StyledTableCell>
+                </StyledTableRow>
+              </TableHead>
+              <TableBody>
+                {row.devices.map((detail, detailIndex) => (
+                  <DetailRow
+                    key={detailIndex}
+                    detail={detail}
+                    detailIndex={detailIndex}
+                  />
+                ))}
+              </TableBody>
+            </Table>
+          </Box>
+        </Collapse>
+      </TableCell>
+    </TableRow>
+  </>
+);
+
+const exportToExcel = (data) => {
+  const ws = XLSX.utils.json_to_sheet(
+    data.devices.map((detail) => ({
+      "Device IMEI": detail.imeiNo,
+      ICCID: detail.iccidNo,
+      "Old Exp Date": new Date(detail.oldExpiryDate).toLocaleDateString(),
+      "New Exp Date": new Date(detail.newExpiryDate).toLocaleDateString(),
+    }))
+  );
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Details");
+  const wbout = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+  FileSaver.saveAs(
+    new Blob([wbout], { type: "application/octet-stream" }),
+    `Request_${data.requestCode}.xlsx`
+  );
+};
+
+const exportToPdf = (data) => {
+  const doc = new jsPDF();
+  doc.text(`Request Code: ${data.requestCode}`, 10, 10);
+  doc.text(`Total Device: ${data.devices.length}`, 10, 20);
+  doc.text(
+    `Renew Date: ${new Date(data.requestDate).toLocaleDateString()}`,
+    10,
+    30
+  );
+  doc.text(`Renewed By: ${data.createdBy}`, 10, 40);
+
+  const tableColumn = [
+    "Sl no.",
+    "Device IMEI",
+    "ICCID",
+    "Old Exp Date",
+    "New Exp Date",
+  ];
+  const tableRows = data.devices.map((detail, index) => [
+    index + 1,
+    detail.imeiNo,
+    detail.iccidNo,
+    new Date(detail.oldExpiryDate).toLocaleDateString(),
+    new Date(detail.newExpiryDate).toLocaleDateString(),
+  ]);
+
+  doc.autoTable(tableColumn, tableRows, { startY: 50 });
+  doc.save(`Request_${data.requestCode}.pdf`);
+};
+
 export default function SimManagement() {
   const [openRowIndex, setOpenRowIndex] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [requestList, setRequestList] = useState([]);
+  const [filteredRequests, setFilteredRequests] = useState([]);
+  const [searchParams, setSearchParams] = useState({
+    fromdate: "",
+    todate: "",
+    requestcode: "",
+  });
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [totalItem, setTotalItem] = useState(0);
 
   const handleRowClick = (index) => {
     setOpenRowIndex(openRowIndex === index ? null : index);
   };
 
   useEffect(() => {
-    // Replace with your actual API endpoint
+    let isMounted = true;
     const fetchData = async () => {
+      setLoading(true);
       try {
-        const response = await axios.get("https://api.example.com/requests");
-        setRequestList(response.data);
+        const data = await fetchRequests(page, rowsPerPage, searchParams);
+        if (isMounted) {
+          setFilteredRequests(data.items);
+          setTotalItem(data.totalItems);
+        }
       } catch (error) {
         console.error("Error fetching data", error);
       } finally {
-        setLoading(false);
+        if (isMounted) setLoading(false);
       }
     };
 
     fetchData();
-  }, []);
+    return () => {
+      isMounted = false;
+    };
+  }, [page, rowsPerPage, searchParams]);
+
+  const debouncedSearch = useCallback(
+    debounce(() => {
+      setPage(0);
+    }, 500),
+    []
+  );
+
+  const handleSearchChange = (e) => {
+    const { name, value } = e.target;
+    setSearchParams((prevParams) => ({
+      ...prevParams,
+      [name]: value,
+    }));
+    debouncedSearch(); // Trigger debounce function
+  };
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
@@ -69,204 +271,122 @@ export default function SimManagement() {
   };
 
   const onExcelDownload = (index) => {
-    showData(index, "excel");
+    const selectedRow = filteredRequests[index];
+    exportToExcel(selectedRow);
   };
 
   const onPdfDownload = (index) => {
-    showData(index, "pdf");
+    const selectedRow = filteredRequests[index];
+    exportToPdf(selectedRow);
   };
-
-  const showData = async (index, exportType) => {
-    const selectedRow = requestList[index];
-    if (exportType === "excel") {
-      exportToExcel(selectedRow);
-    } else if (exportType === "pdf") {
-      exportToPdf(selectedRow);
-    }
+  const hello = () => {
+    console.log("object");
   };
-
-  const exportToExcel = (data) => {
-    const xlsData = data.details.map((detail) => ({
-      "Device IMEI": detail.deviceimei,
-      ICCID: detail.iccid,
-      "Old Exp Date": detail.oldexpdate,
-      "New Exp Date": detail.newexpdate,
-    }));
-    const xls = XLSX(xlsData);
-    const blob = new Blob([xls], { type: "application/vnd.ms-excel" });
-    FileSaver.saveAs(blob, `Request_${data.requestcode}.xlsx`);
-  };
-
-  const exportToPdf = (data) => {
-    const doc = new jsPDF();
-    doc.text(`Request Code: ${data.requestcode}`, 10, 10);
-    doc.text(`Total Device: ${data.totaldevice}`, 10, 20);
-    doc.text(`Renew Date: ${data.renewdate}`, 10, 30);
-    doc.text(`Renewed By: ${data.renewby}`, 10, 40);
-
-    data.details.forEach((detail, index) => {
-      const y = 50 + index * 10;
-      doc.text(`Device IMEI: ${detail.deviceimei}`, 10, y);
-      doc.text(`ICCID: ${detail.iccid}`, 60, y);
-      doc.text(`Old Exp Date: ${detail.oldexpdate}`, 110, y);
-      doc.text(`New Exp Date: ${detail.newexpdate}`, 160, y);
-    });
-
-    doc.save(`Request_${data.requestcode}.pdf`);
-  };
-
   return (
     <div className="main_container">
       <LoadingComponent isLoading={loading} />
-      <Box className="main">
+      <Box sx={{ flexGrow: 1 }} className="main">
         <ThemeProvider theme={theme}>
-          <Grid container>
-            <Grid item sm={12}>
-              <h1>inputfild</h1>
+          <Grid container spacing={2}>
+            <Grid container item xs={12}>
+              <Grid item xs={10}>
+                <h1>Sim Management</h1>
+              </Grid>
+              <Grid item xs={2}>
+                <IconButton
+                  onClick={() => hello()}
+                  aria-label="Export to Excel"
+                >
+                  <img src={importExcelIcon} alt="Export to Excel" />
+                </IconButton>
+              </Grid>
             </Grid>
-            <Grid item sm={12}>
+            <Grid item xs={12}>
+              <Paper sx={{ p: 2 }}>
+                <Grid container spacing={2}>
+                  <Grid item xs={3}>
+                    <TextField
+                      name="fromdate"
+                      label="From Date"
+                      type="date"
+                      value={searchParams.fromdate}
+                      onChange={handleSearchChange}
+                      fullWidth
+                      InputLabelProps={{
+                        shrink: true,
+                      }}
+                    />
+                  </Grid>
+                  <Grid item xs={3}>
+                    <TextField
+                      name="todate"
+                      label="To Date"
+                      type="date"
+                      value={searchParams.todate}
+                      onChange={handleSearchChange}
+                      fullWidth
+                      InputLabelProps={{
+                        shrink: true,
+                      }}
+                    />
+                  </Grid>
+                  <Grid item xs={3}>
+                    <TextField
+                      name="requestcode"
+                      label="Request Code"
+                      value={searchParams.requestcode}
+                      onChange={handleSearchChange}
+                      fullWidth
+                    />
+                  </Grid>
+                  <Grid item xs={3}>
+                    <Button
+                      variant="contained"
+                      color="primary"
+                      onClick={debouncedSearch}
+                      fullWidth
+                      sx={{ height: "100%" }}
+                    >
+                      Search
+                    </Button>
+                  </Grid>
+                </Grid>
+              </Paper>
+            </Grid>
+            <Grid item xs={12}>
               <Paper sx={{ width: "100%", mb: 2 }} elevation={1}>
                 <TableContainer component={Paper} elevation={1}>
                   <Table size="small" aria-label="a dense table">
                     <TableHead>
-                      <TableRow
-                        sx={{
-                          backgroundColor: "rgb(14 57 115 / 86%)",
-                        }}
-                      >
-                        <TableCell sx={{ color: "white" }}>Sl No.</TableCell>
-                        <TableCell sx={{ color: "white" }}>
-                          Request Code
-                        </TableCell>
-                        <TableCell sx={{ color: "white" }}>
-                          Total Device
-                        </TableCell>
-                        <TableCell sx={{ color: "white" }}>
-                          Renew Date
-                        </TableCell>
-                        <TableCell sx={{ color: "white" }}>
-                          Renewed By
-                        </TableCell>
-                        <TableCell sx={{ color: "white" }}>Action</TableCell>
-                        <TableCell sx={{ color: "white" }}>
-                          download EXEL
-                        </TableCell>
-                        <TableCell sx={{ color: "white" }}>
-                          download PDF
-                        </TableCell>
+                      <TableRow>
+                        <StyledTableCell>S.No. </StyledTableCell>
+                        <StyledTableCell>Request Code</StyledTableCell>
+                        <StyledTableCell>Total Devices</StyledTableCell>
+                        <StyledTableCell>Renewed Date</StyledTableCell>
+                        <StyledTableCell>Renewed By</StyledTableCell>
+                        <StyledTableCell>Export EXCEL/PDF</StyledTableCell>
+                        <StyledTableCell>Action</StyledTableCell>
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {requestList.length === 0 ? (
+                      {filteredRequests.length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6} align="center">
+                          <TableCell colSpan={7} align="center">
                             No data available
                           </TableCell>
                         </TableRow>
                       ) : (
-                        requestList
-                          .slice(
-                            page * rowsPerPage,
-                            page * rowsPerPage + rowsPerPage
-                          )
-                          .map((row, index) => (
-                            <React.Fragment key={index}>
-                              <TableRow>
-                                <TableCell>
-                                  {page * rowsPerPage + index + 1}
-                                </TableCell>
-                                <TableCell>{row.requestcode}</TableCell>
-                                <TableCell>{row.totaldevice}</TableCell>
-                                <TableCell>{row.renewdate}</TableCell>
-                                <TableCell>{row.renewby}</TableCell>
-                                <TableCell>
-                                  <IconButton
-                                    onClick={() => handleRowClick(index)}
-                                  >
-                                    {openRowIndex === index ? (
-                                      <KeyboardArrowUp />
-                                    ) : (
-                                      <KeyboardArrowDown />
-                                    )}
-                                  </IconButton>
-                                </TableCell>
-                                <TableCell>
-                                  <div onClick={() => onExcelDownload(index)}>
-                                    <img
-                                      src={exportExcelIcon}
-                                      alt="export excel button"
-                                    ></img>
-                                  </div>
-                                </TableCell>
-                                <TableCell>
-                                  <div onClick={() => onPdfDownload(index)}>
-                                    <img
-                                      src={exportPdfIcon}
-                                      alt="export pdf button"
-                                    ></img>
-                                  </div>
-                                </TableCell>
-                              </TableRow>
-                              <TableRow>
-                                <TableCell
-                                  colSpan={12}
-                                  style={{ paddingBottom: 0, paddingTop: 0 }}
-                                >
-                                  <Collapse
-                                    in={openRowIndex === index}
-                                    timeout="auto"
-                                    unmountOnExit
-                                  >
-                                    <Box margin={1}>
-                                      <Table size="small">
-                                        <TableHead>
-                                          <TableRow
-                                            sx={{
-                                              backgroundColor:
-                                                "rgb(14 57 115 / 86%)",
-                                            }}
-                                          >
-                                            <TableCell sx={{ color: "white" }}>
-                                              Device IMEI
-                                            </TableCell>
-                                            <TableCell sx={{ color: "white" }}>
-                                              ICCID
-                                            </TableCell>
-                                            <TableCell sx={{ color: "white" }}>
-                                              Old Exp date
-                                            </TableCell>
-                                            <TableCell sx={{ color: "white" }}>
-                                              New Exp date
-                                            </TableCell>
-                                          </TableRow>
-                                        </TableHead>
-                                        <TableBody>
-                                          {row.details.map(
-                                            (detail, detailIndex) => (
-                                              <TableRow key={detailIndex}>
-                                                <TableCell>
-                                                  {detail.deviceimei}
-                                                </TableCell>
-                                                <TableCell>
-                                                  {detail.iccid}
-                                                </TableCell>
-                                                <TableCell>
-                                                  {detail.oldexpdate}
-                                                </TableCell>
-                                                <TableCell>
-                                                  {detail.newexpdate}
-                                                </TableCell>
-                                              </TableRow>
-                                            )
-                                          )}
-                                        </TableBody>
-                                      </Table>
-                                    </Box>
-                                  </Collapse>
-                                </TableCell>
-                              </TableRow>
-                            </React.Fragment>
-                          ))
+                        filteredRequests.map((row, index) => (
+                          <RequestRow
+                            key={index}
+                            row={row}
+                            index={index}
+                            isOpen={openRowIndex === index}
+                            handleRowClick={handleRowClick}
+                            onExcelDownload={onExcelDownload}
+                            onPdfDownload={onPdfDownload}
+                          />
+                        ))
                       )}
                     </TableBody>
                   </Table>
@@ -274,7 +394,7 @@ export default function SimManagement() {
                 <TablePagination
                   rowsPerPageOptions={[5, 10, 25]}
                   component="div"
-                  count={requestList.length}
+                  count={totalItem}
                   rowsPerPage={rowsPerPage}
                   page={page}
                   onPageChange={handleChangePage}
