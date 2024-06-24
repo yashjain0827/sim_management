@@ -220,7 +220,7 @@ export default function SimManagement() {
   const [totalItem, setTotalItem] = useState(0);
   const [openModal, setOpenModal] = useState(false);
 
-  const ExcelImportModal = () => {
+  const openExcelImportModal = () => {
     setOpenModal(true);
   };
 
@@ -304,7 +304,7 @@ export default function SimManagement() {
               </Grid>
               <Grid item xs={2}>
                 <IconButton
-                  onClick={() => hello()}
+                  onClick={openExcelImportModal}
                   aria-label="Export to Excel"
                 >
                   <img src={importExcelIcon} alt="Export to Excel" />
@@ -417,6 +417,7 @@ export default function SimManagement() {
             openModal={openModal}
             setOpenModal={setOpenModal}
             closeExcelImportModal={closeExcelImportModal}
+            setLoading={setLoading}
           />
         </ThemeProvider>
       </Box>

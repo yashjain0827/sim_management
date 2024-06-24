@@ -84,7 +84,7 @@ async function importExcel(payload) {
         status: 400,
         message: response?.data?.message,
         requestCode: null,
-        data: null,
+        data: response.data.data,
       };
     }
   } catch (error) {
