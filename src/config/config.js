@@ -134,6 +134,7 @@ const config = Object.freeze({
 
     /*============ sim_management ===============*/
     simImportExcel: "api/save/device_renewal_request",
+    getAllSimManagement: "api/get/All/device_renewal_request",
   },
 });
 

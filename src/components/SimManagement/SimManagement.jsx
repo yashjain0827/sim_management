@@ -31,6 +31,7 @@ import importExcelIcon from "../../img/Export Excel.svg";
 import debounce from "lodash/debounce";
 import { styled } from "@mui/material/styles";
 import ImportExcel from "./ImportExcel";
+import { SimManagementAction } from "../actions/simManagement";
 
 const theme = createTheme({
   palette: {
@@ -51,8 +52,6 @@ const StyledTableCell = styled(TableCell)(({ theme }) => ({
   color: "white",
 }));
 
-const BASE_URL = "http://192.168.12.48:8080/api/get/All/device_renewal_request";
-
 const fetchRequests = async (page, rowsPerPage, searchParams) => {
   try {
     const payload = {
@@ -62,9 +61,9 @@ const fetchRequests = async (page, rowsPerPage, searchParams) => {
       toDate: searchParams.todate,
       search: searchParams.requestcode,
     };
-    const response = await axios.post(BASE_URL, payload);
+    const response = await SimManagementAction.getAllSimManagement(payload);
 
-    return response.data;
+    return response;
   } catch (error) {
     console.error("Error fetching data", error);
     throw error;
@@ -211,8 +210,8 @@ export default function SimManagement() {
   const [loading, setLoading] = useState(true);
   const [filteredRequests, setFilteredRequests] = useState([]);
   const [searchParams, setSearchParams] = useState({
-    fromdate: "",
-    todate: "",
+    fromdate: 0,
+    todate: 0,
     requestcode: "",
   });
   const [page, setPage] = useState(0);
@@ -242,6 +241,7 @@ export default function SimManagement() {
       setLoading(true);
       try {
         const data = await fetchRequests(page, rowsPerPage, searchParams);
+        console.log(data);
         if (isMounted) {
           setFilteredRequests(data.items);
           setTotalItem(data.totalItems);
