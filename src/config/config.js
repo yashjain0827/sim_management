@@ -5,10 +5,10 @@ const config = Object.freeze({
   // baseUrl: "http://192.168.12.48:8080/",
 
   // Surya
-  baseUrl: "http://192.168.12.55:8080/",
+  // baseUrl: "http://192.168.12.55:8080/",
 
   // Subham
-  // baseUrl: "http://192.168.12.57:8080/",
+  baseUrl: "http://192.168.12.57:8080/",
 
   // baseUrl: "http://staging.watsoo.com:8085/watsoo-device-management/",
 
@@ -131,6 +131,9 @@ const config = Object.freeze({
     getDeviceInfo: "api/device/info",
     getCommand: "api/client-state/command",
     getDeviceInfoByImeiNo: "api/v2/device/info",
+
+    /*============ sim_management ===============*/
+    simImportExcel: "api/save/device_renewal_request",
   },
 });
 
