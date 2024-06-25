@@ -280,6 +280,7 @@ export default function ImportExcel({
                         <TableCell
                           style={{
                             color:
+                              val.hasOwnProperty("updated") &&
                               val.updated === false
                                 ? "red"
                                 : "" ||
