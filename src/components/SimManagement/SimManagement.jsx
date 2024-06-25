@@ -444,6 +444,7 @@ export default function SimManagement() {
             openModal={openModal}
             setOpenModal={setOpenModal}
             closeExcelImportModal={closeExcelImportModal}
+            loading={loading}
             setLoading={setLoading}
           />
         </ThemeProvider>
