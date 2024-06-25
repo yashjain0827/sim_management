@@ -52,12 +52,14 @@ const StyledTableCell = styled(TableCell)(({ theme }) => ({
 }));
 
 const fetchRequests = async (page, rowsPerPage, searchParams) => {
+  const fromdate = new Date(searchParams.fromdate).getTime();
+  const todate = new Date(searchParams.todate).getTime();
   try {
     const payload = {
       pageNo: page,
       pageSize: rowsPerPage,
-      fromDate: searchParams.fromdate,
-      toDate: searchParams.todate,
+      fromDate: fromdate,
+      toDate: todate,
       search: searchParams.requestcode.trim(),
     };
     const response = await SimManagementAction.getAllSimManagement(payload);
@@ -222,7 +224,7 @@ export default function SimManagement() {
   const [details, setDetails] = useState({});
   const [searchParams, setSearchParams] = useState({
     fromdate: 0,
-    todate: 0,
+    todate: new Date().getTime(),
     requestcode: "",
   });
   const [page, setPage] = useState(0);
@@ -280,10 +282,18 @@ export default function SimManagement() {
 
   const handleSearchChange = (e) => {
     const { name, value } = e.target;
-    setSearchParams((prevParams) => ({
-      ...prevParams,
-      [name]: value,
-    }));
+    console.log("date pick value: ", e?.target?.value);
+    if (name === "requestcode") {
+      setSearchParams((prevParams) => ({
+        ...prevParams,
+        [name]: value,
+      }));
+    } else {
+      setSearchParams((prevParams) => ({
+        ...prevParams,
+        [name]: value,
+      }));
+    }
     setPage(0);
     debouncedFetchRequests(0, rowsPerPage, { ...searchParams, [name]: value });
   };
@@ -405,7 +415,7 @@ export default function SimManagement() {
                       </TableRow>
                     </TableHead>
                     <TableBody>
-                      {filteredRequests.length === 0 ? (
+                      {filteredRequests?.length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={7} align="center">
                             No data available
