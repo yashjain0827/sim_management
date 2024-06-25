@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback } from "react";
-import axios from "axios";
 import LoadingComponent from "../CommonComponents/LoadingComponts";
 import {
   Box,
@@ -59,13 +58,24 @@ const fetchRequests = async (page, rowsPerPage, searchParams) => {
       pageSize: rowsPerPage,
       fromDate: searchParams.fromdate,
       toDate: searchParams.todate,
-      search: searchParams.requestcode,
+      search: searchParams.requestcode.trim(),
     };
     const response = await SimManagementAction.getAllSimManagement(payload);
-
     return response;
   } catch (error) {
     console.error("Error fetching data", error);
+    throw error;
+  }
+};
+
+const fetchRequestDetails = async (requestCode) => {
+  try {
+    const response = await SimManagementAction.getSimManagementDetails(
+      requestCode
+    );
+    return response;
+  } catch (error) {
+    console.error("Error fetching request details", error);
     throw error;
   }
 };
@@ -99,6 +109,7 @@ const RequestRow = ({
   index,
   isOpen,
   handleRowClick,
+  details,
   onExcelDownload,
   onPdfDownload,
 }) => (
@@ -106,10 +117,9 @@ const RequestRow = ({
     <TableRow sx={{ backgroundColor: "#b3e0e5" }}>
       <TableCell>{index + 1}</TableCell>
       <TableCell>{row.requestCode}</TableCell>
-      <TableCell>{row.devices.length}</TableCell>
+      <TableCell>{row.totalDevices}</TableCell>
       <TableCell>{new Date(row.requestDate).toLocaleDateString()}</TableCell>
       <TableCell>{row.createdBy}</TableCell>
-
       <TableCell>
         <ExportButtons
           index={index}
@@ -119,7 +129,7 @@ const RequestRow = ({
       </TableCell>
       <TableCell>
         <IconButton
-          onClick={() => handleRowClick(index)}
+          onClick={() => handleRowClick(index, row.requestCode)}
           aria-label="Expand row"
         >
           {isOpen ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
@@ -141,7 +151,7 @@ const RequestRow = ({
                 </StyledTableRow>
               </TableHead>
               <TableBody>
-                {row.devices.map((detail, detailIndex) => (
+                {details.map((detail, detailIndex) => (
                   <DetailRow
                     key={detailIndex}
                     detail={detail}
@@ -178,7 +188,7 @@ const exportToExcel = (data) => {
 const exportToPdf = (data) => {
   const doc = new jsPDF();
   doc.text(`Request Code: ${data.requestCode}`, 10, 10);
-  doc.text(`Total Device: ${data.devices.length}`, 10, 20);
+  doc.text(`Total Device: ${data.totalDevices}`, 10, 20);
   doc.text(
     `Renew Date: ${new Date(data.requestDate).toLocaleDateString()}`,
     10,
@@ -206,16 +216,17 @@ const exportToPdf = (data) => {
 };
 
 export default function SimManagement() {
-  const [openRowIndices, setOpenRowIndices] = useState([]);
+  const [openRowIndex, setOpenRowIndex] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filteredRequests, setFilteredRequests] = useState([]);
+  const [details, setDetails] = useState({});
   const [searchParams, setSearchParams] = useState({
     fromdate: 0,
     todate: 0,
     requestcode: "",
   });
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(5);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalItem, setTotalItem] = useState(0);
   const [openModal, setOpenModal] = useState(false);
 
@@ -227,44 +238,45 @@ export default function SimManagement() {
     setOpenModal(false);
   };
 
-  const handleRowClick = (index) => {
-    setOpenRowIndices((prevOpenRowIndices) =>
-      prevOpenRowIndices.includes(index)
-        ? prevOpenRowIndices.filter((i) => i !== index)
-        : [...prevOpenRowIndices, index]
-    );
+  const handleRowClick = async (index, requestCode) => {
+    if (openRowIndex === index) {
+      setOpenRowIndex(null);
+    } else {
+      setLoading(true);
+      try {
+        const data = await fetchRequestDetails(requestCode);
+        setDetails((prevDetails) => ({
+          ...prevDetails,
+          [index]: data.items,
+        }));
+        setOpenRowIndex(index);
+      } catch (error) {
+        console.error("Error fetching request details", error);
+      } finally {
+        setLoading(false);
+      }
+    }
   };
 
-  useEffect(() => {
-    let isMounted = true;
-    const fetchData = async () => {
+  const debouncedFetchRequests = useCallback(
+    debounce(async (page, rowsPerPage, searchParams) => {
       setLoading(true);
       try {
         const data = await fetchRequests(page, rowsPerPage, searchParams);
-        console.log(data);
-        if (isMounted) {
-          setFilteredRequests(data.items);
-          setTotalItem(data.totalItems);
-        }
+        setFilteredRequests(data.items);
+        setTotalItem(data.totalItems);
       } catch (error) {
         console.error("Error fetching data", error);
       } finally {
-        if (isMounted) setLoading(false);
+        setLoading(false);
       }
-    };
-
-    fetchData();
-    return () => {
-      isMounted = false;
-    };
-  }, [page, rowsPerPage, searchParams]);
-
-  const debouncedSearch = useCallback(
-    debounce(() => {
-      setPage(0);
     }, 500),
     []
   );
+
+  useEffect(() => {
+    debouncedFetchRequests(page, rowsPerPage, searchParams);
+  }, [page, rowsPerPage, searchParams, debouncedFetchRequests]);
 
   const handleSearchChange = (e) => {
     const { name, value } = e.target;
@@ -272,30 +284,38 @@ export default function SimManagement() {
       ...prevParams,
       [name]: value,
     }));
-    debouncedSearch(); // Trigger debounce function
+    setPage(0);
+    debouncedFetchRequests(0, rowsPerPage, { ...searchParams, [name]: value });
   };
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
+    debouncedFetchRequests(newPage, rowsPerPage, searchParams);
   };
 
   const handleChangeRowsPerPage = (event) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
+    const newRowsPerPage = parseInt(event.target.value, 10);
+    setRowsPerPage(newRowsPerPage);
     setPage(0);
+    debouncedFetchRequests(0, newRowsPerPage, searchParams);
   };
 
-  const onExcelDownload = (index) => {
-    const selectedRow = filteredRequests[index];
-    exportToExcel(selectedRow);
+  const handleExcelDownload = async (index) => {
+    const requestData = filteredRequests[index];
+    if (requestData) {
+      const detailsData = await fetchRequestDetails(requestData.requestCode);
+      exportToExcel({ ...requestData, devices: detailsData.items });
+    }
   };
 
-  const onPdfDownload = (index) => {
-    const selectedRow = filteredRequests[index];
-    exportToPdf(selectedRow);
+  const handlePdfDownload = async (index) => {
+    const requestData = filteredRequests[index];
+    if (requestData) {
+      const detailsData = await fetchRequestDetails(requestData.requestCode);
+      exportToPdf({ ...requestData, devices: detailsData.items });
+    }
   };
-  const hello = () => {
-    console.log("object");
-  };
+
   return (
     <div className="main_container">
       <LoadingComponent isLoading={loading} />
@@ -357,7 +377,9 @@ export default function SimManagement() {
                     <Button
                       variant="contained"
                       color="primary"
-                      onClick={debouncedSearch}
+                      onClick={() =>
+                        debouncedFetchRequests(page, rowsPerPage, searchParams)
+                      }
                       fullWidth
                       sx={{ height: "100%" }}
                     >
@@ -395,10 +417,11 @@ export default function SimManagement() {
                             key={index}
                             row={row}
                             index={index}
-                            isOpen={openRowIndices.includes(index)}
+                            isOpen={openRowIndex === index}
                             handleRowClick={handleRowClick}
-                            onExcelDownload={onExcelDownload}
-                            onPdfDownload={onPdfDownload}
+                            details={details[index] || []}
+                            onExcelDownload={handleExcelDownload}
+                            onPdfDownload={handlePdfDownload}
                           />
                         ))
                       )}
@@ -406,7 +429,7 @@ export default function SimManagement() {
                   </Table>
                 </TableContainer>
                 <TablePagination
-                  rowsPerPageOptions={[5, 10, 25]}
+                  rowsPerPageOptions={[10, 20, 50, 100]}
                   component="div"
                   count={totalItem}
                   rowsPerPage={rowsPerPage}
