@@ -57,6 +57,7 @@ export default function ImportExcel({
     setSubscriptionICCIDExpiry([]);
     setCount(0);
     setIsSubmitDisabled(true);
+    window.location.reload();
   };
 
   const iccidChangeExpiryDate = () => {
@@ -74,28 +75,24 @@ export default function ImportExcel({
 
     setLoading(true);
 
-    SimManagementAction.importExcel(payload)
-      .then((response) => {
-        if (response !== null && response.data) {
-          setShow(true);
-          setSubscriptionICCIDExpiry(response.data || []);
-          setResponseMessage(response.message);
-          setReqCode(response.requestCode || "");
-          const updatedCount = (response.data || []).filter(
-            (val) => val.updated === true
-          ).length;
-          setCount(updatedCount);
-        } else {
-          setShow(true);
-          setSubscriptionICCIDExpiry([]);
-          setResponseMessage(response.message || "Failed to update.");
-          setReqCode("");
-        }
-      })
-
-      .finally(() => {
-        setLoading(false);
-      });
+    SimManagementAction.importExcel(payload).then((response) => {
+      if (response !== null && response.data) {
+        setShow(true);
+        setSubscriptionICCIDExpiry(response.data || []);
+        setResponseMessage(response.message);
+        setReqCode(response.requestCode || "");
+        const updatedCount = (response.data || []).filter(
+          (val) => val.updated === true
+        ).length;
+        setCount(updatedCount);
+      } else {
+        setShow(true);
+        setSubscriptionICCIDExpiry([]);
+        setResponseMessage(response.message || "Failed to update.");
+        setReqCode("");
+      }
+      setLoading(false);
+    });
   };
 
   const onFileChange = (event) => {
@@ -137,14 +134,14 @@ export default function ImportExcel({
 
       if (isValid) {
         setSubscriptionICCIDExpiry(iccidExpDate);
-        setResponseMessage("");
         setIsSubmitDisabled(false);
+        setResponseMessage("");
       } else {
-        setSubscriptionICCIDExpiry([]);
+        setSubscriptionICCIDExpiry(iccidExpDate);
+        setIsSubmitDisabled(true);
         setResponseMessage(
           "Invalid Data in Excel sheet. Please Upload a Valid Excel Sheet."
         );
-        setIsSubmitDisabled(true);
       }
     });
   };
@@ -266,12 +263,47 @@ export default function ImportExcel({
                         key={ind}
                         style={{
                           backgroundColor:
-                            val.updated === false ? "rgba(255,0,0,0.3)" : "",
+                            val.hasOwnProperty("updated") &&
+                            val?.updated === false
+                              ? "rgba(255,0,0,0.2)"
+                              : val.hasOwnProperty("iccid") && !val?.iccid
+                              ? "rgba(255,0,0,0.2)"
+                              : val.hasOwnProperty("iccidNo") && !val?.iccidNo
+                              ? "rgba(255,0,0,0.2)"
+                              : val.hasOwnProperty("expiryDate") &&
+                                !val?.expiryDate
+                              ? "rgba(255,0,0,0.2)"
+                              : "",
                         }}
                       >
                         <TableCell>{ind + 1}</TableCell>
-                        <TableCell>{val.iccid || val.iccidNo || ""}</TableCell>
-                        <TableCell>
+                        <TableCell
+                          style={{
+                            color:
+                              val.updated === false
+                                ? "red"
+                                : "" ||
+                                  (val.hasOwnProperty("iccid") && !val?.iccid)
+                                ? "red"
+                                : val.hasOwnProperty("iccidNo") && !val?.iccidNo
+                                ? "red"
+                                : "",
+                          }}
+                        >
+                          {val.iccid || val.iccidNo || "Invalid ICCID"}
+                        </TableCell>
+                        <TableCell
+                          style={{
+                            color:
+                              val.hasOwnProperty("expiryDate") &&
+                              !val?.expiryDate
+                                ? "red"
+                                : val.hasOwnProperty("newExpiryDate") &&
+                                  !val?.newExpiryDate
+                                ? "red"
+                                : "",
+                          }}
+                        >
                           {val.expiryDate ? (
                             moment(val.expiryDate, "DD/MM/YYYY").format(
                               "DD-MM-YYYY"
@@ -305,7 +337,9 @@ export default function ImportExcel({
         <DialogActions>
           {!show ? (
             <>
-              <Button onClick={handleCancel}>Cancel</Button>
+              <Button onClick={handleCancel} disabled={loading}>
+                Cancel
+              </Button>
               <Button
                 onClick={iccidChangeExpiryDate}
                 autoFocus
