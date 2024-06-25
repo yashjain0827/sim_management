@@ -61,7 +61,7 @@ async function getAllSimManagement(payload) {
     };
   }
 }
-async function getSimManagementDetails(requestCode) {
+async function getSimManagementDetails(requestCode, page, pageSize) {
   try {
     const apiEndPoint = `${config.baseUrl}${config.apiName.getAllSimManagement}${requestCode}`;
     const response = await userService.get(apiEndPoint);

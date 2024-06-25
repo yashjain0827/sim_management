@@ -27,6 +27,7 @@ export default function ImportExcel({
   closeExcelImportModal,
   loading,
   setLoading,
+  setNewRequestAdded,
 }) {
   const [fullWidth, setFullWidth] = React.useState(true);
   const [maxWidth, setMaxWidth] = React.useState("md");
@@ -57,6 +58,7 @@ export default function ImportExcel({
     setSubscriptionICCIDExpiry([]);
     setCount(0);
     setIsSubmitDisabled(true);
+    setNewRequestAdded((prev) => !prev);
   };
 
   const iccidChangeExpiryDate = () => {

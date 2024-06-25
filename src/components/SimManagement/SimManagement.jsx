@@ -224,13 +224,14 @@ export default function SimManagement() {
   const [details, setDetails] = useState({});
   const [searchParams, setSearchParams] = useState({
     fromdate: 0,
-    todate: new Date().getTime(),
+    todate: new Date(),
     requestcode: "",
   });
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(10);
   const [totalItem, setTotalItem] = useState(0);
   const [openModal, setOpenModal] = useState(false);
+  const [newRequestAdded, setNewRequestAdded] = useState(false);
 
   const openExcelImportModal = () => {
     setOpenModal(true);
@@ -278,7 +279,13 @@ export default function SimManagement() {
 
   useEffect(() => {
     debouncedFetchRequests(page, rowsPerPage, searchParams);
-  }, [page, rowsPerPage, searchParams, debouncedFetchRequests]);
+  }, [
+    page,
+    rowsPerPage,
+    searchParams,
+    debouncedFetchRequests,
+    newRequestAdded,
+  ]);
 
   const handleSearchChange = (e) => {
     const { name, value } = e.target;
@@ -333,10 +340,10 @@ export default function SimManagement() {
         <ThemeProvider theme={theme}>
           <Grid container spacing={2}>
             <Grid container item xs={12}>
-              <Grid item xs={10}>
+              <Grid item xs={11}>
                 <h1>Sim Management</h1>
               </Grid>
-              <Grid item xs={2}>
+              <Grid item xs={1}>
                 <IconButton
                   onClick={openExcelImportModal}
                   aria-label="Export to Excel"
@@ -348,7 +355,7 @@ export default function SimManagement() {
             <Grid item xs={12}>
               <Paper sx={{ p: 2 }}>
                 <Grid container spacing={2}>
-                  <Grid item xs={3}>
+                  <Grid item xs={4}>
                     <TextField
                       name="fromdate"
                       label="From Date"
@@ -361,7 +368,7 @@ export default function SimManagement() {
                       }}
                     />
                   </Grid>
-                  <Grid item xs={3}>
+                  <Grid item xs={4}>
                     <TextField
                       name="todate"
                       label="To Date"
@@ -374,7 +381,7 @@ export default function SimManagement() {
                       }}
                     />
                   </Grid>
-                  <Grid item xs={3}>
+                  <Grid item xs={4}>
                     <TextField
                       name="requestcode"
                       label="Request Code"
@@ -383,7 +390,7 @@ export default function SimManagement() {
                       fullWidth
                     />
                   </Grid>
-                  <Grid item xs={3}>
+                  {/* <Grid item xs={3}>
                     <Button
                       variant="contained"
                       color="primary"
@@ -395,7 +402,7 @@ export default function SimManagement() {
                     >
                       Search
                     </Button>
-                  </Grid>
+                  </Grid> */}
                 </Grid>
               </Paper>
             </Grid>
@@ -456,6 +463,7 @@ export default function SimManagement() {
             closeExcelImportModal={closeExcelImportModal}
             loading={loading}
             setLoading={setLoading}
+            setNewRequestAdded={setNewRequestAdded}
           />
         </ThemeProvider>
       </Box>
