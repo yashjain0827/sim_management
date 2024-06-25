@@ -70,10 +70,15 @@ const fetchRequests = async (page, rowsPerPage, searchParams) => {
   }
 };
 
-const fetchRequestDetails = async (requestCode) => {
+const fetchRequestDetails = async (requestCode, page, rowsPerPage) => {
   try {
+    const payload = {
+      pageNo: page,
+      pageSize: rowsPerPage,
+    };
     const response = await SimManagementAction.getSimManagementDetails(
-      requestCode
+      requestCode,
+      payload
     );
     return response;
   } catch (error) {
@@ -114,6 +119,11 @@ const RequestRow = ({
   details,
   onExcelDownload,
   onPdfDownload,
+  detailPage,
+  detailRowsPerPage,
+  handleDetailPageChange,
+  handleDetailRowsPerPageChange,
+  detailTotalItem,
 }) => (
   <>
     <TableRow sx={{ backgroundColor: "#b3e0e5" }}>
@@ -162,6 +172,22 @@ const RequestRow = ({
                 ))}
               </TableBody>
             </Table>
+            <TablePagination
+              rowsPerPageOptions={[5, 10, 20]}
+              component="div"
+              count={detailTotalItem}
+              rowsPerPage={detailRowsPerPage}
+              page={detailPage}
+              onPageChange={(event, newPage) =>
+                handleDetailPageChange(index, newPage)
+              }
+              onRowsPerPageChange={(event) =>
+                handleDetailRowsPerPageChange(
+                  index,
+                  parseInt(event.target.value, 10)
+                )
+              }
+            />
           </Box>
         </Collapse>
       </TableCell>
@@ -224,7 +250,7 @@ export default function SimManagement() {
   const [details, setDetails] = useState({});
   const [searchParams, setSearchParams] = useState({
     fromdate: 0,
-    todate: new Date(),
+    todate: new Date().getTime(),
     requestcode: "",
   });
   const [page, setPage] = useState(0);
@@ -232,6 +258,9 @@ export default function SimManagement() {
   const [totalItem, setTotalItem] = useState(0);
   const [openModal, setOpenModal] = useState(false);
   const [newRequestAdded, setNewRequestAdded] = useState(false);
+  const [detailPage, setDetailPage] = useState({});
+  const [detailRowsPerPage, setDetailRowsPerPage] = useState({});
+  const [detailTotalItem, setDetailTotalItem] = useState({});
 
   const openExcelImportModal = () => {
     setOpenModal(true);
@@ -247,10 +276,18 @@ export default function SimManagement() {
     } else {
       setLoading(true);
       try {
-        const data = await fetchRequestDetails(requestCode);
+        const data = await fetchRequestDetails(
+          requestCode,
+          detailPage[index] || 0,
+          detailRowsPerPage[index] || 5
+        );
         setDetails((prevDetails) => ({
           ...prevDetails,
           [index]: data.items,
+        }));
+        setDetailTotalItem((prevTotal) => ({
+          ...prevTotal,
+          [index]: data.totalItems,
         }));
         setOpenRowIndex(index);
       } catch (error) {
@@ -258,6 +295,56 @@ export default function SimManagement() {
       } finally {
         setLoading(false);
       }
+    }
+  };
+
+  const handleDetailPageChange = async (index, newPage) => {
+    setDetailPage((prevPage) => ({
+      ...prevPage,
+      [index]: newPage,
+    }));
+    const requestCode = filteredRequests[index].requestCode;
+    try {
+      const data = await fetchRequestDetails(
+        requestCode,
+        newPage,
+        detailRowsPerPage[index] || 5
+      );
+      setDetails((prevDetails) => ({
+        ...prevDetails,
+        [index]: data.items,
+      }));
+      setDetailTotalItem((prevTotal) => ({
+        ...prevTotal,
+        [index]: data.totalItems,
+      }));
+    } catch (error) {
+      console.error("Error fetching request details", error);
+    }
+  };
+
+  const handleDetailRowsPerPageChange = async (index, newRowsPerPage) => {
+    setDetailRowsPerPage((prevRowsPerPage) => ({
+      ...prevRowsPerPage,
+      [index]: newRowsPerPage,
+    }));
+    setDetailPage((prevPage) => ({
+      ...prevPage,
+      [index]: 0,
+    }));
+    const requestCode = filteredRequests[index].requestCode;
+    try {
+      const data = await fetchRequestDetails(requestCode, 0, newRowsPerPage);
+      setDetails((prevDetails) => ({
+        ...prevDetails,
+        [index]: data.items,
+      }));
+      setDetailTotalItem((prevTotal) => ({
+        ...prevTotal,
+        [index]: data.totalItems,
+      }));
+    } catch (error) {
+      console.error("Error fetching request details", error);
     }
   };
 
@@ -289,7 +376,6 @@ export default function SimManagement() {
 
   const handleSearchChange = (e) => {
     const { name, value } = e.target;
-    console.log("date pick value: ", e?.target?.value);
     if (name === "requestcode") {
       setSearchParams((prevParams) => ({
         ...prevParams,
@@ -320,7 +406,11 @@ export default function SimManagement() {
   const handleExcelDownload = async (index) => {
     const requestData = filteredRequests[index];
     if (requestData) {
-      const detailsData = await fetchRequestDetails(requestData.requestCode);
+      const detailsData = await fetchRequestDetails(
+        requestData.requestCode,
+        0,
+        0
+      );
       exportToExcel({ ...requestData, devices: detailsData.items });
     }
   };
@@ -328,7 +418,11 @@ export default function SimManagement() {
   const handlePdfDownload = async (index) => {
     const requestData = filteredRequests[index];
     if (requestData) {
-      const detailsData = await fetchRequestDetails(requestData.requestCode);
+      const detailsData = await fetchRequestDetails(
+        requestData.requestCode,
+        0,
+        0
+      );
       exportToPdf({ ...requestData, devices: detailsData.items });
     }
   };
@@ -340,10 +434,10 @@ export default function SimManagement() {
         <ThemeProvider theme={theme}>
           <Grid container spacing={2}>
             <Grid container item xs={12}>
-              <Grid item xs={11}>
+              <Grid item xs={10}>
                 <h1>Sim Management</h1>
               </Grid>
-              <Grid item xs={1}>
+              <Grid item xs={2}>
                 <IconButton
                   onClick={openExcelImportModal}
                   aria-label="Export to Excel"
@@ -355,7 +449,7 @@ export default function SimManagement() {
             <Grid item xs={12}>
               <Paper sx={{ p: 2 }}>
                 <Grid container spacing={2}>
-                  <Grid item xs={4}>
+                  <Grid item xs={3}>
                     <TextField
                       name="fromdate"
                       label="From Date"
@@ -368,7 +462,7 @@ export default function SimManagement() {
                       }}
                     />
                   </Grid>
-                  <Grid item xs={4}>
+                  <Grid item xs={3}>
                     <TextField
                       name="todate"
                       label="To Date"
@@ -381,7 +475,7 @@ export default function SimManagement() {
                       }}
                     />
                   </Grid>
-                  <Grid item xs={4}>
+                  <Grid item xs={3}>
                     <TextField
                       name="requestcode"
                       label="Request Code"
@@ -390,7 +484,7 @@ export default function SimManagement() {
                       fullWidth
                     />
                   </Grid>
-                  {/* <Grid item xs={3}>
+                  <Grid item xs={3}>
                     <Button
                       variant="contained"
                       color="primary"
@@ -402,7 +496,7 @@ export default function SimManagement() {
                     >
                       Search
                     </Button>
-                  </Grid> */}
+                  </Grid>
                 </Grid>
               </Paper>
             </Grid>
@@ -439,6 +533,13 @@ export default function SimManagement() {
                             details={details[index] || []}
                             onExcelDownload={handleExcelDownload}
                             onPdfDownload={handlePdfDownload}
+                            detailPage={detailPage[index] || 0}
+                            detailRowsPerPage={detailRowsPerPage[index] || 5}
+                            handleDetailPageChange={handleDetailPageChange}
+                            handleDetailRowsPerPageChange={
+                              handleDetailRowsPerPageChange
+                            }
+                            detailTotalItem={detailTotalItem[index] || 0}
                           />
                         ))
                       )}
