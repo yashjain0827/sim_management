@@ -25,6 +25,7 @@ export default function ImportExcel({
   openModal,
   setOpenModal,
   closeExcelImportModal,
+  loading,
   setLoading,
 }) {
   const [fullWidth, setFullWidth] = React.useState(true);
@@ -71,23 +72,30 @@ export default function ImportExcel({
       deviceRenewalList: data,
     };
 
-    SimManagementAction.importExcel(payload).then((response) => {
-      if (response !== null && response.data) {
-        setShow(true);
-        setSubscriptionICCIDExpiry(response.data || []);
-        setResponseMessage(response.message);
-        setReqCode(response.requestCode || "");
-        const updatedCount = (response.data || []).filter(
-          (val) => val.updated === true
-        ).length;
-        setCount(updatedCount);
-      } else {
-        setShow(true);
-        setSubscriptionICCIDExpiry([]);
-        setResponseMessage(response.message || "Failed to update.");
-        setReqCode("");
-      }
-    });
+    setLoading(true);
+
+    SimManagementAction.importExcel(payload)
+      .then((response) => {
+        if (response !== null && response.data) {
+          setShow(true);
+          setSubscriptionICCIDExpiry(response.data || []);
+          setResponseMessage(response.message);
+          setReqCode(response.requestCode || "");
+          const updatedCount = (response.data || []).filter(
+            (val) => val.updated === true
+          ).length;
+          setCount(updatedCount);
+        } else {
+          setShow(true);
+          setSubscriptionICCIDExpiry([]);
+          setResponseMessage(response.message || "Failed to update.");
+          setReqCode("");
+        }
+      })
+
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
   const onFileChange = (event) => {
@@ -301,7 +309,7 @@ export default function ImportExcel({
               <Button
                 onClick={iccidChangeExpiryDate}
                 autoFocus
-                disabled={isSubmitDisabled}
+                disabled={isSubmitDisabled || loading}
               >
                 Submit
               </Button>
