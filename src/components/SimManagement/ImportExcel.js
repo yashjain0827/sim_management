@@ -182,11 +182,11 @@ export default function ImportExcel({
               className="font14"
               style={{ fontWeight: "bold", marginLeft: "10px" }}
             >
-              Import Devices By Excel
+              Import New Sim Expiry Dates By Excel
             </span>
             <div>
               <a className="float-right" href={subExpirySample} download>
-                Download Devices Excel Template
+                Download New Sim Expiry Dates Excel Template
               </a>
             </div>
           </div>
@@ -280,6 +280,9 @@ export default function ImportExcel({
                               : val.hasOwnProperty("expiryDate") &&
                                 !val?.expiryDate
                               ? "rgba(255,0,0,0.2)"
+                              : val.hasOwnProperty("updated") &&
+                                val?.updated === true
+                              ? "rgba(0,255,0,0.2)"
                               : "",
                         }}
                       >
