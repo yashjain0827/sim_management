@@ -17,6 +17,7 @@ import {
   Grid,
   TextField,
   Button,
+  Tooltip,
 } from "@mui/material";
 import { KeyboardArrowDown, KeyboardArrowUp } from "@mui/icons-material";
 import FileSaver from "file-saver";
@@ -53,7 +54,9 @@ const StyledTableCell = styled(TableCell)(({ theme }) => ({
 
 const fetchRequests = async (page, rowsPerPage, searchParams) => {
   const fromdate = new Date(searchParams.fromdate).getTime();
+  // const fromdate = searchParams.fromdate;
   const todate = new Date(searchParams.todate).getTime();
+  // const todate = searchParams.todate;
   try {
     const payload = {
       pageNo: page,
@@ -89,15 +92,22 @@ const fetchRequestDetails = async (requestCode, page, rowsPerPage) => {
 
 const ExportButtons = ({ index, onExcelDownload, onPdfDownload }) => (
   <>
-    <IconButton
-      onClick={() => onExcelDownload(index)}
-      aria-label="Export to Excel"
-    >
-      <img src={exportExcelIcon} alt="Export to Excel" />
-    </IconButton>
-    <IconButton onClick={() => onPdfDownload(index)} aria-label="Export to PDF">
-      <img src={exportPdfIcon} alt="Export to PDF" />
-    </IconButton>
+    <Tooltip title="Export Excel" arrow>
+      <IconButton
+        onClick={() => onExcelDownload(index)}
+        aria-label="Export to Excel"
+      >
+        <img src={exportExcelIcon} alt="Export to Excel" />
+      </IconButton>
+    </Tooltip>
+    <Tooltip title="Export PDF" arrow>
+      <IconButton
+        onClick={() => onPdfDownload(index)}
+        aria-label="Export to PDF"
+      >
+        <img src={exportPdfIcon} alt="Export to PDF" />
+      </IconButton>
+    </Tooltip>
   </>
 );
 
@@ -250,11 +260,13 @@ export default function SimManagement() {
   const [details, setDetails] = useState({});
   const [searchParams, setSearchParams] = useState({
     fromdate: 0,
+    // fromdate: null,
     todate: new Date().getTime(),
+    // todate: null,
     requestcode: "",
   });
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(5);
   const [totalItem, setTotalItem] = useState(0);
   const [openModal, setOpenModal] = useState(false);
   const [newRequestAdded, setNewRequestAdded] = useState(false);
@@ -394,6 +406,7 @@ export default function SimManagement() {
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
     debouncedFetchRequests(newPage, rowsPerPage, searchParams);
+    setOpenRowIndex(null);
   };
 
   const handleChangeRowsPerPage = (event) => {
@@ -434,22 +447,24 @@ export default function SimManagement() {
         <ThemeProvider theme={theme}>
           <Grid container spacing={2}>
             <Grid container item xs={12}>
-              <Grid item xs={10}>
+              <Grid item xs={11}>
                 <h1>Sim Management</h1>
               </Grid>
-              <Grid item xs={2}>
-                <IconButton
-                  onClick={openExcelImportModal}
-                  aria-label="Export to Excel"
-                >
-                  <img src={importExcelIcon} alt="Export to Excel" />
-                </IconButton>
+              <Grid item xs={1}>
+                <Tooltip title="Import Excel" arrow>
+                  <IconButton
+                    onClick={openExcelImportModal}
+                    aria-label="Export to Excel"
+                  >
+                    <img src={importExcelIcon} alt="Export to Excel" />
+                  </IconButton>
+                </Tooltip>
               </Grid>
             </Grid>
             <Grid item xs={12}>
               <Paper sx={{ p: 2 }}>
                 <Grid container spacing={2}>
-                  <Grid item xs={3}>
+                  <Grid item xs={4}>
                     <TextField
                       name="fromdate"
                       label="From Date"
@@ -462,7 +477,7 @@ export default function SimManagement() {
                       }}
                     />
                   </Grid>
-                  <Grid item xs={3}>
+                  <Grid item xs={4}>
                     <TextField
                       name="todate"
                       label="To Date"
@@ -475,7 +490,7 @@ export default function SimManagement() {
                       }}
                     />
                   </Grid>
-                  <Grid item xs={3}>
+                  <Grid item xs={4}>
                     <TextField
                       name="requestcode"
                       label="Request Code"
@@ -484,7 +499,7 @@ export default function SimManagement() {
                       fullWidth
                     />
                   </Grid>
-                  <Grid item xs={3}>
+                  {/* <Grid item xs={3}>
                     <Button
                       variant="contained"
                       color="primary"
@@ -496,7 +511,7 @@ export default function SimManagement() {
                     >
                       Search
                     </Button>
-                  </Grid>
+                  </Grid> */}
                 </Grid>
               </Paper>
             </Grid>
@@ -547,7 +562,7 @@ export default function SimManagement() {
                   </Table>
                 </TableContainer>
                 <TablePagination
-                  rowsPerPageOptions={[10, 20, 50, 100]}
+                  rowsPerPageOptions={[5, 10, 20, 50, 100]}
                   component="div"
                   count={totalItem}
                   rowsPerPage={rowsPerPage}
