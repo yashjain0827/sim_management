@@ -100,6 +100,7 @@ export default function ImportExcel({
     const inputFile = event.target.files[0];
     setFile(inputFile);
     readXlsxFile(inputFile).then((rows) => {
+      const today = moment().startOf("day");
       const iccidExpDate = rows.slice(1).map((row) => {
         let rawICCID = row[0];
         let rawDate = row[1];
@@ -118,6 +119,11 @@ export default function ImportExcel({
             new Date(Math.round((rawDate - 25569) * 86400 * 1000))
           ).format("DD/MM/YYYY");
         } else {
+          expiryDate = null;
+          isValidDate = false;
+        }
+
+        if (isValidDate && moment(expiryDate, "DD/MM/YYYY").isBefore(today)) {
           expiryDate = null;
           isValidDate = false;
         }
