@@ -16,7 +16,6 @@ import {
   TablePagination,
   Grid,
   TextField,
-  Button,
   Tooltip,
 } from "@mui/material";
 import { KeyboardArrowDown, KeyboardArrowUp } from "@mui/icons-material";
@@ -55,8 +54,8 @@ const StyledTableCell = styled(TableCell)(({ theme }) => ({
 const fetchRequests = async (page, rowsPerPage, searchParams) => {
   const fromdate = new Date(searchParams.fromdate).getTime();
   // const fromdate = searchParams.fromdate;
-  const todate = new Date(searchParams.todate).getTime();
-  // const todate = searchParams.todate;
+  const todate = new Date(searchParams.todate).getTime() || 0;
+
   try {
     const payload = {
       pageNo: page,
@@ -65,6 +64,7 @@ const fetchRequests = async (page, rowsPerPage, searchParams) => {
       toDate: todate,
       search: searchParams.requestcode.trim(),
     };
+    // console.log("payload:", payload);
     const response = await SimManagementAction.getAllSimManagement(payload);
     return response;
   } catch (error) {
@@ -254,15 +254,21 @@ const exportToPdf = (data) => {
 };
 
 export default function SimManagement() {
+  const formatDateForInput = (date) => {
+    const d = new Date(date);
+    const month = `${d.getMonth() + 1}`.padStart(2, "0");
+    const day = `${d.getDate()}`.padStart(2, "0");
+    const year = d.getFullYear();
+    return `${year}-${month}-${day}`;
+  };
   const [openRowIndex, setOpenRowIndex] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filteredRequests, setFilteredRequests] = useState([]);
-  const [details, setDetails] = useState({});
+  const [details, setDetails] = useState([]);
+
   const [searchParams, setSearchParams] = useState({
     fromdate: 0,
-    // fromdate: null,
-    todate: new Date().getTime(),
-    // todate: null,
+    todate: formatDateForInput(new Date()),
     requestcode: "",
   });
   const [page, setPage] = useState(0);
@@ -270,9 +276,9 @@ export default function SimManagement() {
   const [totalItem, setTotalItem] = useState(0);
   const [openModal, setOpenModal] = useState(false);
   const [newRequestAdded, setNewRequestAdded] = useState(false);
-  const [detailPage, setDetailPage] = useState({});
-  const [detailRowsPerPage, setDetailRowsPerPage] = useState({});
-  const [detailTotalItem, setDetailTotalItem] = useState({});
+  const [detailPage, setDetailPage] = useState([]);
+  const [detailRowsPerPage, setDetailRowsPerPage] = useState([]);
+  const [detailTotalItem, setDetailTotalItem] = useState([]);
 
   const openExcelImportModal = () => {
     setOpenModal(true);
@@ -285,6 +291,14 @@ export default function SimManagement() {
   const handleRowClick = async (index, requestCode) => {
     if (openRowIndex === index) {
       setOpenRowIndex(null);
+      const updatedDetailPage = [...detailPage];
+      const updatedDetailRowsPerPage = [...detailRowsPerPage];
+
+      updatedDetailPage[index] = 0;
+      updatedDetailRowsPerPage[index] = 5;
+
+      setDetailPage(updatedDetailPage);
+      setDetailRowsPerPage(updatedDetailRowsPerPage);
     } else {
       setLoading(true);
       try {
@@ -293,14 +307,14 @@ export default function SimManagement() {
           detailPage[index] || 0,
           detailRowsPerPage[index] || 5
         );
-        setDetails((prevDetails) => ({
-          ...prevDetails,
-          [index]: data.items,
-        }));
-        setDetailTotalItem((prevTotal) => ({
-          ...prevTotal,
-          [index]: data.totalItems,
-        }));
+        const updatedDetails = [...details];
+        const updatedDetailTotalItem = [...detailTotalItem];
+
+        updatedDetails[index] = data.items;
+        updatedDetailTotalItem[index] = data.totalItems;
+
+        setDetails(updatedDetails);
+        setDetailTotalItem(updatedDetailTotalItem);
         setOpenRowIndex(index);
       } catch (error) {
         console.error("Error fetching request details", error);
@@ -311,10 +325,10 @@ export default function SimManagement() {
   };
 
   const handleDetailPageChange = async (index, newPage) => {
-    setDetailPage((prevPage) => ({
-      ...prevPage,
-      [index]: newPage,
-    }));
+    const updatedDetailPage = [...detailPage];
+    updatedDetailPage[index] = newPage;
+    setDetailPage(updatedDetailPage);
+
     const requestCode = filteredRequests[index].requestCode;
     try {
       const data = await fetchRequestDetails(
@@ -322,39 +336,40 @@ export default function SimManagement() {
         newPage,
         detailRowsPerPage[index] || 5
       );
-      setDetails((prevDetails) => ({
-        ...prevDetails,
-        [index]: data.items,
-      }));
-      setDetailTotalItem((prevTotal) => ({
-        ...prevTotal,
-        [index]: data.totalItems,
-      }));
+      const updatedDetails = [...details];
+      const updatedDetailTotalItem = [...detailTotalItem];
+
+      updatedDetails[index] = data.items;
+      updatedDetailTotalItem[index] = data.totalItems;
+
+      setDetails(updatedDetails);
+      setDetailTotalItem(updatedDetailTotalItem);
     } catch (error) {
       console.error("Error fetching request details", error);
     }
   };
 
   const handleDetailRowsPerPageChange = async (index, newRowsPerPage) => {
-    setDetailRowsPerPage((prevRowsPerPage) => ({
-      ...prevRowsPerPage,
-      [index]: newRowsPerPage,
-    }));
-    setDetailPage((prevPage) => ({
-      ...prevPage,
-      [index]: 0,
-    }));
+    const updatedDetailRowsPerPage = [...detailRowsPerPage];
+    const updatedDetailPage = [...detailPage];
+
+    updatedDetailRowsPerPage[index] = newRowsPerPage;
+    updatedDetailPage[index] = 0;
+
+    setDetailRowsPerPage(updatedDetailRowsPerPage);
+    setDetailPage(updatedDetailPage);
+
     const requestCode = filteredRequests[index].requestCode;
     try {
       const data = await fetchRequestDetails(requestCode, 0, newRowsPerPage);
-      setDetails((prevDetails) => ({
-        ...prevDetails,
-        [index]: data.items,
-      }));
-      setDetailTotalItem((prevTotal) => ({
-        ...prevTotal,
-        [index]: data.totalItems,
-      }));
+      const updatedDetails = [...details];
+      const updatedDetailTotalItem = [...detailTotalItem];
+
+      updatedDetails[index] = data.items;
+      updatedDetailTotalItem[index] = data.totalItems;
+
+      setDetails(updatedDetails);
+      setDetailTotalItem(updatedDetailTotalItem);
     } catch (error) {
       console.error("Error fetching request details", error);
     }
@@ -365,8 +380,8 @@ export default function SimManagement() {
       setLoading(true);
       try {
         const data = await fetchRequests(page, rowsPerPage, searchParams);
-        setFilteredRequests(data.items);
-        setTotalItem(data.totalItems);
+        setFilteredRequests(data?.items || []);
+        setTotalItem(data?.totalItems || 0);
       } catch (error) {
         console.error("Error fetching data", error);
       } finally {
@@ -388,25 +403,40 @@ export default function SimManagement() {
 
   const handleSearchChange = (e) => {
     const { name, value } = e.target;
-    if (name === "requestcode") {
-      setSearchParams((prevParams) => ({
-        ...prevParams,
-        [name]: value,
-      }));
-    } else {
-      setSearchParams((prevParams) => ({
-        ...prevParams,
-        [name]: value,
-      }));
-    }
+    setSearchParams((prevParams) => ({
+      ...prevParams,
+      [name]: value,
+    }));
+    // console.log("searchParams:", searchParams);
     setPage(0);
     debouncedFetchRequests(0, rowsPerPage, { ...searchParams, [name]: value });
+    if (openRowIndex !== null) {
+      const updatedDetailPage = [...detailPage];
+      const updatedDetailRowsPerPage = [...detailRowsPerPage];
+
+      updatedDetailPage[openRowIndex] = 0;
+      updatedDetailRowsPerPage[openRowIndex] = 5;
+
+      setDetailPage(updatedDetailPage);
+      setDetailRowsPerPage(updatedDetailRowsPerPage);
+      setOpenRowIndex(null);
+    }
   };
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
     debouncedFetchRequests(newPage, rowsPerPage, searchParams);
-    setOpenRowIndex(null);
+    if (openRowIndex !== null) {
+      const updatedDetailPage = [...detailPage];
+      const updatedDetailRowsPerPage = [...detailRowsPerPage];
+
+      updatedDetailPage[openRowIndex] = 0;
+      updatedDetailRowsPerPage[openRowIndex] = 5;
+
+      setDetailPage(updatedDetailPage);
+      setDetailRowsPerPage(updatedDetailRowsPerPage);
+      setOpenRowIndex(null);
+    }
   };
 
   const handleChangeRowsPerPage = (event) => {
@@ -499,19 +529,6 @@ export default function SimManagement() {
                       fullWidth
                     />
                   </Grid>
-                  {/* <Grid item xs={3}>
-                    <Button
-                      variant="contained"
-                      color="primary"
-                      onClick={() =>
-                        debouncedFetchRequests(page, rowsPerPage, searchParams)
-                      }
-                      fullWidth
-                      sx={{ height: "100%" }}
-                    >
-                      Search
-                    </Button>
-                  </Grid> */}
                 </Grid>
               </Paper>
             </Grid>

@@ -46,10 +46,10 @@ async function getAllSimManagement(payload) {
       return response.data;
     } else {
       return {
-        status: 400,
-        message: response?.data?.message,
+        status: response.data?.responseCode || 400,
+        message: response.data?.message || "Unknown error",
         requestCode: null,
-        data: response.data.data,
+        data: response.data?.data || null,
       };
     }
   } catch (error) {
