@@ -53,7 +53,6 @@ const StyledTableCell = styled(TableCell)(({ theme }) => ({
 
 const fetchRequests = async (page, rowsPerPage, searchParams) => {
   const fromdate = new Date(searchParams.fromdate).getTime();
-  // const fromdate = searchParams.fromdate;
   const todate = new Date(searchParams.todate).getTime() || 0;
 
   try {
@@ -393,6 +392,17 @@ export default function SimManagement() {
 
   useEffect(() => {
     debouncedFetchRequests(page, rowsPerPage, searchParams);
+    if (openRowIndex !== null) {
+      const updatedDetailPage = [...detailPage];
+      const updatedDetailRowsPerPage = [...detailRowsPerPage];
+
+      updatedDetailPage[openRowIndex] = 0;
+      updatedDetailRowsPerPage[openRowIndex] = 5;
+
+      setDetailPage(updatedDetailPage);
+      setDetailRowsPerPage(updatedDetailRowsPerPage);
+      setOpenRowIndex(null);
+    }
   }, [
     page,
     rowsPerPage,
@@ -410,33 +420,11 @@ export default function SimManagement() {
     // console.log("searchParams:", searchParams);
     setPage(0);
     debouncedFetchRequests(0, rowsPerPage, { ...searchParams, [name]: value });
-    if (openRowIndex !== null) {
-      const updatedDetailPage = [...detailPage];
-      const updatedDetailRowsPerPage = [...detailRowsPerPage];
-
-      updatedDetailPage[openRowIndex] = 0;
-      updatedDetailRowsPerPage[openRowIndex] = 5;
-
-      setDetailPage(updatedDetailPage);
-      setDetailRowsPerPage(updatedDetailRowsPerPage);
-      setOpenRowIndex(null);
-    }
   };
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
     debouncedFetchRequests(newPage, rowsPerPage, searchParams);
-    if (openRowIndex !== null) {
-      const updatedDetailPage = [...detailPage];
-      const updatedDetailRowsPerPage = [...detailRowsPerPage];
-
-      updatedDetailPage[openRowIndex] = 0;
-      updatedDetailRowsPerPage[openRowIndex] = 5;
-
-      setDetailPage(updatedDetailPage);
-      setDetailRowsPerPage(updatedDetailRowsPerPage);
-      setOpenRowIndex(null);
-    }
   };
 
   const handleChangeRowsPerPage = (event) => {
