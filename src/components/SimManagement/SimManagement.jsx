@@ -51,9 +51,24 @@ const StyledTableCell = styled(TableCell)(({ theme }) => ({
   color: "white",
 }));
 
+function todateconvertISTtoUTC(date) {
+  console.log(date);
+  let istDate = new Date(date);
+  let istOffset = 23 * 60 * 60 * 1000 + 59 * 60 * 1000 + 59 * 1000;
+  let utcDate = new Date(istDate.getTime() + istOffset);
+  console.log(utcDate);
+  return utcDate.getTime();
+}
+
 const fetchRequests = async (page, rowsPerPage, searchParams) => {
-  const fromdate = new Date(searchParams.fromdate).getTime();
-  const todate = new Date(searchParams.todate).getTime() || 0;
+  console.log("Current searchParams:", searchParams);
+
+  const fromdate = searchParams.fromdate
+    ? new Date(searchParams.fromdate).getTime()
+    : 0;
+  const todate = searchParams.todate
+    ? todateconvertISTtoUTC(new Date(searchParams.todate))
+    : 0;
 
   try {
     const payload = {
@@ -63,7 +78,7 @@ const fetchRequests = async (page, rowsPerPage, searchParams) => {
       toDate: todate,
       search: searchParams.requestcode.trim(),
     };
-    // console.log("payload:", payload);
+    console.log("payload:", payload);
     const response = await SimManagementAction.getAllSimManagement(payload);
     return response;
   } catch (error) {
@@ -119,6 +134,26 @@ const DetailRow = ({ detail, detailIndex }) => (
     <TableCell>{new Date(detail.newExpiryDate).toLocaleDateString()}</TableCell>
   </TableRow>
 );
+const formatDateTime = (utcDateTime) => {
+  const date = new Date(utcDateTime);
+
+  const offsetInMinutes = date.getTimezoneOffset() + 330;
+  date.setMinutes(date.getMinutes() + offsetInMinutes);
+
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+
+  let hours = date.getHours();
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  const formattedTime = `${hours}:${minutes} ${ampm}`;
+
+  const formattedDate = `${day}/${month}/${year}`;
+  return `${formattedDate} ${formattedTime}`;
+};
 
 const RequestRow = ({
   row,
@@ -139,7 +174,7 @@ const RequestRow = ({
       <TableCell>{index + 1}</TableCell>
       <TableCell>{row.requestCode}</TableCell>
       <TableCell>{row.totalDevices}</TableCell>
-      <TableCell>{new Date(row.requestDate).toLocaleDateString()}</TableCell>
+      <TableCell>{formatDateTime(row.requestDate)}</TableCell>
       <TableCell>{row.createdBy}</TableCell>
       <TableCell>
         <ExportButtons
@@ -181,7 +216,7 @@ const RequestRow = ({
                 ))}
               </TableBody>
             </Table>
-            <TablePagination
+            {/* <TablePagination
               rowsPerPageOptions={[5, 10, 20]}
               component="div"
               count={detailTotalItem}
@@ -196,7 +231,7 @@ const RequestRow = ({
                   parseInt(event.target.value, 10)
                 )
               }
-            />
+            /> */}
           </Box>
         </Collapse>
       </TableCell>
@@ -266,10 +301,11 @@ export default function SimManagement() {
   const [details, setDetails] = useState([]);
 
   const [searchParams, setSearchParams] = useState({
-    fromdate: 0,
+    fromdate: "",
     todate: formatDateForInput(new Date()),
     requestcode: "",
   });
+
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [totalItem, setTotalItem] = useState(0);
@@ -417,7 +453,6 @@ export default function SimManagement() {
       ...prevParams,
       [name]: value,
     }));
-    // console.log("searchParams:", searchParams);
     setPage(0);
     debouncedFetchRequests(0, rowsPerPage, { ...searchParams, [name]: value });
   };
@@ -508,10 +543,11 @@ export default function SimManagement() {
                       }}
                     />
                   </Grid>
+
                   <Grid item xs={4}>
                     <TextField
                       name="requestcode"
-                      label="Request Code"
+                      label="Request Code/IMEI Number	"
                       value={searchParams.requestcode}
                       onChange={handleSearchChange}
                       fullWidth
