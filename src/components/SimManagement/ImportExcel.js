@@ -40,6 +40,7 @@ export default function ImportExcel({
   const [responseMessage, setResponseMessage] = React.useState("");
   const [reqCode, setReqCode] = React.useState("");
   const [isSubmitDisabled, setIsSubmitDisabled] = React.useState(true);
+  const [isFileUploaded, setIsFileUploaded] = React.useState(false);
   const loggedInUserData = JSON.parse(localStorage.getItem("data"));
 
   const handleCancel = () => {
@@ -49,6 +50,7 @@ export default function ImportExcel({
     setResponseMessage("");
     setReqCode("");
     setIsSubmitDisabled(true);
+    setIsFileUploaded(false);
   };
 
   const handleDone = () => {
@@ -59,6 +61,7 @@ export default function ImportExcel({
     setCount(0);
     setIsSubmitDisabled(true);
     setNewRequestAdded((prev) => !prev);
+    setIsFileUploaded(false);
   };
 
   const iccidChangeExpiryDate = () => {
@@ -98,7 +101,24 @@ export default function ImportExcel({
 
   const onFileChange = (event) => {
     const inputFile = event.target.files[0];
+
+    if (!inputFile) {
+      return;
+    }
+
+    if (
+      inputFile.type !==
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    ) {
+      setResponseMessage(
+        "Invalid File Format. Please upload a valid xlsx file or download the sample file."
+      );
+      setIsFileUploaded(false);
+      return;
+    }
+
     setFile(inputFile);
+    setIsFileUploaded(true);
     readXlsxFile(inputFile).then((rows) => {
       const today = moment().startOf("day");
       const iccidExpDate = rows.slice(1).map((row) => {
@@ -108,7 +128,17 @@ export default function ImportExcel({
         let expiryDate;
         let isValidDate = true;
 
-        let iccid = rawICCID ? rawICCID.trim() : "";
+        // console.log("rawICCID", rawICCID, typeof rawICCID);
+
+        // let iccid = rawICCID ? rawICCID?.trim() : "";
+        let iccid;
+        // debugger;
+
+        if (typeof rawICCID === "number") {
+          iccid = rawICCID?.toString()?.trim();
+        } else if (typeof rawICCID === "string") {
+          iccid = rawICCID?.trim();
+        }
 
         if (moment(rawDate, "DD/MM/YY", true).isValid()) {
           expiryDate = moment(rawDate, "DD/MM/YY").format("DD/MM/YYYY");
@@ -160,6 +190,7 @@ export default function ImportExcel({
     setResponseMessage("");
     setReqCode("");
     setIsSubmitDisabled(true);
+    setIsFileUploaded(false);
   };
 
   const hasUpdatedProperty = subscriptionICCIDExpiry.some((item) =>
@@ -182,11 +213,11 @@ export default function ImportExcel({
               className="font14"
               style={{ fontWeight: "bold", marginLeft: "10px" }}
             >
-              Import Devices By Excel
+              Import New Sim Expiry Dates By Excel
             </span>
             <div>
               <a className="float-right" href={subExpirySample} download>
-                Download Devices Excel Template
+                Download New Sim Expiry Dates Excel Template
               </a>
             </div>
           </div>
@@ -241,102 +272,116 @@ export default function ImportExcel({
                 </Typography>
               </Grid>
             </Grid>
-            <Paper sx={{ width: "100%", mb: 2 }} elevation={1}>
-              <TableContainer component={Paper} elevation={1}>
-                <Table size="small" aria-label="a dense table">
-                  <TableHead style={{ background: "rgb(14 57 115 / 86%)" }}>
-                    <TableRow>
-                      <TableCell style={{ color: "#fff", fontWeight: "bold" }}>
-                        S.No
-                      </TableCell>
-                      <TableCell style={{ color: "#fff", fontWeight: "bold" }}>
-                        ICCID
-                      </TableCell>
-                      <TableCell style={{ color: "#fff", fontWeight: "bold" }}>
-                        Expiry Date
-                      </TableCell>
-                      {hasUpdatedProperty && (
+
+            {isFileUploaded && (
+              <Paper sx={{ width: "100%", mb: 2 }} elevation={1}>
+                <TableContainer component={Paper} elevation={1}>
+                  <Table size="small" aria-label="a dense table">
+                    <TableHead style={{ background: "rgb(14 57 115 / 86%)" }}>
+                      <TableRow>
                         <TableCell
                           style={{ color: "#fff", fontWeight: "bold" }}
                         >
-                          Updated
-                        </TableCell>
-                      )}
-                    </TableRow>
-                  </TableHead>
-                  <TableBody>
-                    {subscriptionICCIDExpiry.map((val, ind) => (
-                      <TableRow
-                        key={ind}
-                        style={{
-                          backgroundColor:
-                            val.hasOwnProperty("updated") &&
-                            val?.updated === false
-                              ? "rgba(255,0,0,0.2)"
-                              : val.hasOwnProperty("iccid") && !val?.iccid
-                              ? "rgba(255,0,0,0.2)"
-                              : val.hasOwnProperty("iccidNo") && !val?.iccidNo
-                              ? "rgba(255,0,0,0.2)"
-                              : val.hasOwnProperty("expiryDate") &&
-                                !val?.expiryDate
-                              ? "rgba(255,0,0,0.2)"
-                              : "",
-                        }}
-                      >
-                        <TableCell>{ind + 1}</TableCell>
-                        <TableCell
-                          style={{
-                            color:
-                              val.hasOwnProperty("updated") &&
-                              val.updated === false
-                                ? "red"
-                                : "" ||
-                                  (val.hasOwnProperty("iccid") && !val?.iccid)
-                                ? "red"
-                                : val.hasOwnProperty("iccidNo") && !val?.iccidNo
-                                ? "red"
-                                : "",
-                          }}
-                        >
-                          {val.iccid || val.iccidNo || "Invalid ICCID"}
+                          S.No
                         </TableCell>
                         <TableCell
-                          style={{
-                            color:
-                              val.hasOwnProperty("expiryDate") &&
-                              !val?.expiryDate
-                                ? "red"
-                                : val.hasOwnProperty("newExpiryDate") &&
-                                  !val?.newExpiryDate
-                                ? "red"
-                                : "",
-                          }}
+                          style={{ color: "#fff", fontWeight: "bold" }}
                         >
-                          {val.expiryDate ? (
-                            moment(val.expiryDate, "DD/MM/YYYY").format(
-                              "DD-MM-YYYY"
-                            )
-                          ) : val.newExpiryDate ? (
-                            moment(val.newExpiryDate).format("DD-MM-YYYY")
-                          ) : (
-                            <span>Invalid Date</span>
-                          )}
+                          ICCID
+                        </TableCell>
+                        <TableCell
+                          style={{ color: "#fff", fontWeight: "bold" }}
+                        >
+                          Expiry Date
                         </TableCell>
                         {hasUpdatedProperty && (
-                          <TableCell>
-                            {val.updated === true
-                              ? "Updated"
-                              : val.updated === false
-                              ? "Not Updated"
-                              : "NA"}
+                          <TableCell
+                            style={{ color: "#fff", fontWeight: "bold" }}
+                          >
+                            Updated
                           </TableCell>
                         )}
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </TableContainer>
-            </Paper>
+                    </TableHead>
+                    <TableBody>
+                      {subscriptionICCIDExpiry.map((val, ind) => (
+                        <TableRow
+                          key={ind}
+                          style={{
+                            backgroundColor:
+                              val.hasOwnProperty("updated") &&
+                              val?.updated === false
+                                ? "rgba(255,0,0,0.2)"
+                                : val.hasOwnProperty("iccid") && !val?.iccid
+                                ? "rgba(255,0,0,0.2)"
+                                : val.hasOwnProperty("iccidNo") && !val?.iccidNo
+                                ? "rgba(255,0,0,0.2)"
+                                : val.hasOwnProperty("expiryDate") &&
+                                  !val?.expiryDate
+                                ? "rgba(255,0,0,0.2)"
+                                : val.hasOwnProperty("updated") &&
+                                  val?.updated === true
+                                ? "rgba(0,255,0,0.2)"
+                                : "",
+                          }}
+                        >
+                          <TableCell>{ind + 1}</TableCell>
+                          <TableCell
+                            style={{
+                              color:
+                                val.hasOwnProperty("updated") &&
+                                val.updated === false
+                                  ? "red"
+                                  : "" ||
+                                    (val.hasOwnProperty("iccid") && !val?.iccid)
+                                  ? "red"
+                                  : val.hasOwnProperty("iccidNo") &&
+                                    !val?.iccidNo
+                                  ? "red"
+                                  : "",
+                            }}
+                          >
+                            {val.iccid || val.iccidNo || "Invalid ICCID"}
+                          </TableCell>
+                          <TableCell
+                            style={{
+                              color:
+                                val.hasOwnProperty("expiryDate") &&
+                                !val?.expiryDate
+                                  ? "red"
+                                  : val.hasOwnProperty("newExpiryDate") &&
+                                    !val?.newExpiryDate
+                                  ? "red"
+                                  : "",
+                            }}
+                          >
+                            {val.expiryDate ? (
+                              moment(val.expiryDate, "DD/MM/YYYY").format(
+                                "DD-MM-YYYY"
+                              )
+                            ) : val.newExpiryDate ? (
+                              moment(val.newExpiryDate).format("DD-MM-YYYY")
+                            ) : (
+                              <span>Invalid Date</span>
+                            )}
+                          </TableCell>
+                          {hasUpdatedProperty && (
+                            <TableCell>
+                              {val.updated === true
+                                ? "Updated"
+                                : val.updated === false
+                                ? "Not Updated"
+                                : "NA"}
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </TableContainer>
+              </Paper>
+            )}
+
             {responseMessage && (
               <Typography variant="body2">{responseMessage}</Typography>
             )}

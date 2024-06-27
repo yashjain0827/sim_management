@@ -6,7 +6,7 @@
     "@emotion/react": "^11.11.4",
     "@emotion/styled": "^11.11.5",
     "@googlemaps/js-api-loader": "^1.16.2",
-    "@mui/icons-material": "^5.11.0",
+    "@mui/icons-material": "^5.15.20",
     "@mui/material": "^5.15.20",
     "@mui/styled-engine-sc": "^5.11.0",
     "@syncfusion/ej2-react-barcode-generator": "^24.2.6",
