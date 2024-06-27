@@ -34,6 +34,7 @@ import iccidIcon from "../../img/Icons/SIM.svg";
 import deviceLotIcon from "../../img/deviceLot.svg";
 import subscriptionMasterIcon from "../../img/Subscription Master2.svg";
 import rawDataIcon from "../../img/Raw Data icon.svg";
+import SimCardIcon from "../../img/Icons/sim-management.svg";
 // console.log(AllUser)
 const drawerWidth = 280;
 
@@ -194,6 +195,8 @@ const Sidebar = () => {
               ? rawDataIcon
               : ele.name == "Reconfigure"
               ? rawDataIcon
+              : ele.name == "Sim Management"
+              ? SimCardIcon
               : "",
 
           submenu: group[ele.id] ? group[ele.id] : [],

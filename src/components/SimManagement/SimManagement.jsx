@@ -52,7 +52,7 @@ const StyledTableCell = styled(TableCell)(({ theme }) => ({
 }));
 
 const fetchRequests = async (page, rowsPerPage, searchParams) => {
-  const fromdate = new Date(searchParams.fromdate).getTime();
+  const fromdate = new Date(searchParams.fromdate).getTime() || 0;
   const todate = new Date(searchParams.todate).getTime() || 0;
 
   try {
