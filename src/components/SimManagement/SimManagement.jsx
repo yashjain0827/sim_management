@@ -52,20 +52,25 @@ const StyledTableCell = styled(TableCell)(({ theme }) => ({
 }));
 
 function todateconvertISTtoUTC(date) {
-  console.log(date);
   let istDate = new Date(date);
-  let istOffset = 23 * 60 * 60 * 1000 + 59 * 60 * 1000 + 59 * 1000;
+  let istOffset = 18 * 60 * 60 * 1000 + 29 * 60 * 1000 + 59 * 1000;
   let utcDate = new Date(istDate.getTime() + istOffset);
-  console.log(utcDate);
+  return utcDate.getTime();
+}
+function fromdateconvertISTtoUTC(date) {
+  let istDate = new Date(date);
+  let istOffset = 5 * 60 * 60 * 1000 + 30 * 60 * 1000;
+  let utcDate = new Date(istDate.getTime() - istOffset);
   return utcDate.getTime();
 }
 
 const fetchRequests = async (page, rowsPerPage, searchParams) => {
   console.log("Current searchParams:", searchParams);
-
+  debugger;
   const fromdate = searchParams.fromdate
-    ? new Date(searchParams.fromdate).getTime()
+    ? fromdateconvertISTtoUTC(new Date(searchParams.fromdate))
     : 0;
+  debugger;
   const todate = searchParams.todate
     ? todateconvertISTtoUTC(new Date(searchParams.todate))
     : 0;
@@ -125,15 +130,27 @@ const ExportButtons = ({ index, onExcelDownload, onPdfDownload }) => (
   </>
 );
 
-const DetailRow = ({ detail, detailIndex }) => (
-  <TableRow sx={{ backgroundColor: "#b3e0e5" }}>
-    <TableCell>{detailIndex + 1}</TableCell>
-    <TableCell>{detail.imeiNo}</TableCell>
-    <TableCell>{detail.iccidNo}</TableCell>
-    <TableCell>{new Date(detail.oldExpiryDate).toLocaleDateString()}</TableCell>
-    <TableCell>{new Date(detail.newExpiryDate).toLocaleDateString()}</TableCell>
-  </TableRow>
-);
+const DetailRow = ({ detail, detailIndex, searchParams }) => {
+  const trimmedSearchParams = searchParams.trim();
+  const isHighlighted =
+    trimmedSearchParams &&
+    !isNaN(trimmedSearchParams) &&
+    detail.imeiNo.includes(trimmedSearchParams);
+
+  return (
+    <TableRow sx={{ backgroundColor: isHighlighted ? "#FFD700" : "#b3e0e5" }}>
+      <TableCell>{detailIndex + 1}</TableCell>
+      <TableCell>{detail.imeiNo}</TableCell>
+      <TableCell>{detail.iccidNo}</TableCell>
+      <TableCell>
+        {new Date(detail.oldExpiryDate).toLocaleDateString()}
+      </TableCell>
+      <TableCell>
+        {new Date(detail.newExpiryDate).toLocaleDateString()}
+      </TableCell>
+    </TableRow>
+  );
+};
 const formatDateTime = (utcDateTime) => {
   const date = new Date(utcDateTime);
 
@@ -168,6 +185,7 @@ const RequestRow = ({
   handleDetailPageChange,
   handleDetailRowsPerPageChange,
   detailTotalItem,
+  searchParams,
 }) => (
   <>
     <TableRow sx={{ backgroundColor: "#b3e0e5" }}>
@@ -212,6 +230,7 @@ const RequestRow = ({
                     key={detailIndex}
                     detail={detail}
                     detailIndex={detailIndex}
+                    searchParams={searchParams}
                   />
                 ))}
               </TableBody>
@@ -596,6 +615,7 @@ export default function SimManagement() {
                               handleDetailRowsPerPageChange
                             }
                             detailTotalItem={detailTotalItem[index] || 0}
+                            searchParams={searchParams.requestcode}
                           />
                         ))
                       )}
