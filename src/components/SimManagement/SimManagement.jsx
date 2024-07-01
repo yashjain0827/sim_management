@@ -280,11 +280,7 @@ const exportToPdf = (data) => {
   const doc = new jsPDF();
   doc.text(`Request Code: ${data.requestCode}`, 10, 10);
   doc.text(`Total Device: ${data.totalDevices}`, 10, 20);
-  doc.text(
-    `Renew Date: ${new Date(data.requestDate).toLocaleDateString()}`,
-    10,
-    30
-  );
+  doc.text(`Renew Date: ${formatDateTime(data.requestDate)}`, 10, 30);
   doc.text(`Renewed By: ${data.createdBy}`, 10, 40);
 
   const tableColumn = [
