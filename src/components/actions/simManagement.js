@@ -61,10 +61,10 @@ async function getAllSimManagement(payload) {
     };
   }
 }
-async function getSimManagementDetails(requestCode, payload) {
+async function getSimManagementDetails(requestId) {
   try {
-    const apiEndPoint = `${config.baseUrl}${config.apiName.getOneSimManagement}${requestCode}`;
-    const response = await userService.post(apiEndPoint, payload);
+    const apiEndPoint = `${config.baseUrl}${config.apiName.getOneSimManagement}${requestId}`;
+    const response = await userService.get(apiEndPoint);
     if (response && response.data) {
       return response.data;
     } else {

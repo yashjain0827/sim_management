@@ -66,11 +66,9 @@ function fromdateconvertISTtoUTC(date) {
 
 const fetchRequests = async (page, rowsPerPage, searchParams) => {
   console.log("Current searchParams:", searchParams);
-  debugger;
   const fromdate = searchParams.fromdate
     ? fromdateconvertISTtoUTC(new Date(searchParams.fromdate))
     : 0;
-  debugger;
   const todate = searchParams.todate
     ? todateconvertISTtoUTC(new Date(searchParams.todate))
     : 0;
@@ -92,15 +90,10 @@ const fetchRequests = async (page, rowsPerPage, searchParams) => {
   }
 };
 
-const fetchRequestDetails = async (requestCode, page, rowsPerPage) => {
+const fetchRequestDetails = async (requestId) => {
   try {
-    const payload = {
-      pageNo: page,
-      pageSize: rowsPerPage,
-    };
     const response = await SimManagementAction.getSimManagementDetails(
-      requestCode,
-      payload
+      requestId
     );
     return response;
   } catch (error) {
@@ -180,11 +173,6 @@ const RequestRow = ({
   details,
   onExcelDownload,
   onPdfDownload,
-  detailPage,
-  detailRowsPerPage,
-  handleDetailPageChange,
-  handleDetailRowsPerPageChange,
-  detailTotalItem,
   searchParams,
 }) => (
   <>
@@ -203,7 +191,7 @@ const RequestRow = ({
       </TableCell>
       <TableCell>
         <IconButton
-          onClick={() => handleRowClick(index, row.requestCode)}
+          onClick={() => handleRowClick(index, row.requestId)}
           aria-label="Expand row"
         >
           {isOpen ? <KeyboardArrowUp /> : <KeyboardArrowDown />}
@@ -235,22 +223,6 @@ const RequestRow = ({
                 ))}
               </TableBody>
             </Table>
-            {/* <TablePagination
-              rowsPerPageOptions={[5, 10, 20]}
-              component="div"
-              count={detailTotalItem}
-              rowsPerPage={detailRowsPerPage}
-              page={detailPage}
-              onPageChange={(event, newPage) =>
-                handleDetailPageChange(index, newPage)
-              }
-              onRowsPerPageChange={(event) =>
-                handleDetailRowsPerPageChange(
-                  index,
-                  parseInt(event.target.value, 10)
-                )
-              }
-            /> */}
           </Box>
         </Collapse>
       </TableCell>
@@ -326,9 +298,6 @@ export default function SimManagement() {
   const [totalItem, setTotalItem] = useState(0);
   const [openModal, setOpenModal] = useState(false);
   const [newRequestAdded, setNewRequestAdded] = useState(false);
-  const [detailPage, setDetailPage] = useState([]);
-  const [detailRowsPerPage, setDetailRowsPerPage] = useState([]);
-  const [detailTotalItem, setDetailTotalItem] = useState([]);
 
   const openExcelImportModal = () => {
     setOpenModal(true);
@@ -338,90 +307,23 @@ export default function SimManagement() {
     setOpenModal(false);
   };
 
-  const handleRowClick = async (index, requestCode) => {
+  const handleRowClick = async (index, requestId) => {
     if (openRowIndex === index) {
       setOpenRowIndex(null);
-      const updatedDetailPage = [...detailPage];
-      const updatedDetailRowsPerPage = [...detailRowsPerPage];
-
-      updatedDetailPage[index] = 0;
-      updatedDetailRowsPerPage[index] = 5;
-
-      setDetailPage(updatedDetailPage);
-      setDetailRowsPerPage(updatedDetailRowsPerPage);
     } else {
       setLoading(true);
       try {
-        const data = await fetchRequestDetails(
-          requestCode,
-          detailPage[index] || 0,
-          detailRowsPerPage[index] || 5
-        );
+        const data = await fetchRequestDetails(requestId);
         const updatedDetails = [...details];
-        const updatedDetailTotalItem = [...detailTotalItem];
-
-        updatedDetails[index] = data.items;
-        updatedDetailTotalItem[index] = data.totalItems;
+        updatedDetails[index] = data.data;
 
         setDetails(updatedDetails);
-        setDetailTotalItem(updatedDetailTotalItem);
         setOpenRowIndex(index);
       } catch (error) {
         console.error("Error fetching request details", error);
       } finally {
         setLoading(false);
       }
-    }
-  };
-
-  const handleDetailPageChange = async (index, newPage) => {
-    const updatedDetailPage = [...detailPage];
-    updatedDetailPage[index] = newPage;
-    setDetailPage(updatedDetailPage);
-
-    const requestCode = filteredRequests[index].requestCode;
-    try {
-      const data = await fetchRequestDetails(
-        requestCode,
-        newPage,
-        detailRowsPerPage[index] || 5
-      );
-      const updatedDetails = [...details];
-      const updatedDetailTotalItem = [...detailTotalItem];
-
-      updatedDetails[index] = data.items;
-      updatedDetailTotalItem[index] = data.totalItems;
-
-      setDetails(updatedDetails);
-      setDetailTotalItem(updatedDetailTotalItem);
-    } catch (error) {
-      console.error("Error fetching request details", error);
-    }
-  };
-
-  const handleDetailRowsPerPageChange = async (index, newRowsPerPage) => {
-    const updatedDetailRowsPerPage = [...detailRowsPerPage];
-    const updatedDetailPage = [...detailPage];
-
-    updatedDetailRowsPerPage[index] = newRowsPerPage;
-    updatedDetailPage[index] = 0;
-
-    setDetailRowsPerPage(updatedDetailRowsPerPage);
-    setDetailPage(updatedDetailPage);
-
-    const requestCode = filteredRequests[index].requestCode;
-    try {
-      const data = await fetchRequestDetails(requestCode, 0, newRowsPerPage);
-      const updatedDetails = [...details];
-      const updatedDetailTotalItem = [...detailTotalItem];
-
-      updatedDetails[index] = data.items;
-      updatedDetailTotalItem[index] = data.totalItems;
-
-      setDetails(updatedDetails);
-      setDetailTotalItem(updatedDetailTotalItem);
-    } catch (error) {
-      console.error("Error fetching request details", error);
     }
   };
 
@@ -444,14 +346,6 @@ export default function SimManagement() {
   useEffect(() => {
     debouncedFetchRequests(page, rowsPerPage, searchParams);
     if (openRowIndex !== null) {
-      const updatedDetailPage = [...detailPage];
-      const updatedDetailRowsPerPage = [...detailRowsPerPage];
-
-      updatedDetailPage[openRowIndex] = 0;
-      updatedDetailRowsPerPage[openRowIndex] = 5;
-
-      setDetailPage(updatedDetailPage);
-      setDetailRowsPerPage(updatedDetailRowsPerPage);
       setOpenRowIndex(null);
     }
   }, [
@@ -487,24 +381,16 @@ export default function SimManagement() {
   const handleExcelDownload = async (index) => {
     const requestData = filteredRequests[index];
     if (requestData) {
-      const detailsData = await fetchRequestDetails(
-        requestData.requestCode,
-        0,
-        0
-      );
-      exportToExcel({ ...requestData, devices: detailsData.items });
+      const detailsData = await fetchRequestDetails(requestData.requestId);
+      exportToExcel({ ...requestData, devices: detailsData.data });
     }
   };
 
   const handlePdfDownload = async (index) => {
     const requestData = filteredRequests[index];
     if (requestData) {
-      const detailsData = await fetchRequestDetails(
-        requestData.requestCode,
-        0,
-        0
-      );
-      exportToPdf({ ...requestData, devices: detailsData.items });
+      const detailsData = await fetchRequestDetails(requestData.requestId);
+      exportToPdf({ ...requestData, devices: detailsData.data });
     }
   };
 
@@ -604,13 +490,6 @@ export default function SimManagement() {
                             details={details[index] || []}
                             onExcelDownload={handleExcelDownload}
                             onPdfDownload={handlePdfDownload}
-                            detailPage={detailPage[index] || 0}
-                            detailRowsPerPage={detailRowsPerPage[index] || 5}
-                            handleDetailPageChange={handleDetailPageChange}
-                            handleDetailRowsPerPageChange={
-                              handleDetailRowsPerPageChange
-                            }
-                            detailTotalItem={detailTotalItem[index] || 0}
                             searchParams={searchParams.requestcode}
                           />
                         ))

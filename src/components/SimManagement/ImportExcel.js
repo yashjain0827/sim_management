@@ -119,68 +119,97 @@ export default function ImportExcel({
 
     setFile(inputFile);
     setIsFileUploaded(true);
-    readXlsxFile(inputFile).then((rows) => {
-      const today = moment().startOf("day");
-      const iccidExpDate = rows.slice(1).map((row) => {
-        let rawICCID = row[0];
-        let rawDate = row[1];
 
-        let expiryDate;
-        let isValidDate = true;
+    readXlsxFile(inputFile)
+      .then((rows) => {
+        console.log(rows);
+        const today = moment().startOf("day");
 
-        // console.log("rawICCID", rawICCID, typeof rawICCID);
-
-        // let iccid = rawICCID ? rawICCID?.trim() : "";
-        let iccid;
-        // debugger;
-
-        if (typeof rawICCID === "number") {
-          iccid = rawICCID?.toString()?.trim();
-        } else if (typeof rawICCID === "string") {
-          iccid = rawICCID?.trim();
-        }
-
-        if (moment(rawDate, "DD/MM/YY", true).isValid()) {
-          expiryDate = moment(rawDate, "DD/MM/YY").format("DD/MM/YYYY");
-        } else if (moment(rawDate, "DD/MM/YYYY", true).isValid()) {
-          expiryDate = moment(rawDate, "DD/MM/YYYY").format("DD/MM/YYYY");
-        } else if (typeof rawDate === "number") {
-          expiryDate = moment(
-            new Date(Math.round((rawDate - 25569) * 86400 * 1000))
-          ).format("DD/MM/YYYY");
-        } else {
-          expiryDate = null;
-          isValidDate = false;
-        }
-
-        if (isValidDate && moment(expiryDate, "DD/MM/YYYY").isBefore(today)) {
-          expiryDate = null;
-          isValidDate = false;
-        }
-
-        return {
-          iccid,
-          expiryDate,
-          isValidDate,
+        // Utility function to parse ICCID
+        const parseICCID = (rawICCID) => {
+          if (typeof rawICCID === "number") {
+            return rawICCID.toString().trim();
+          } else if (typeof rawICCID === "string") {
+            return rawICCID.trim();
+          }
+          return null;
         };
-      });
 
-      const isValid = iccidExpDate.every(
-        (item) => item.iccid && item.isValidDate
-      );
+        // Utility function to format date object to dd/mm/yyyy string
+        const formatDate = (date) => {
+          if (date instanceof Date && !isNaN(date)) {
+            return moment(date).format("DD/MM/YYYY");
+          }
+          return date;
+        };
 
-      if (isValid) {
-        setSubscriptionICCIDExpiry(iccidExpDate);
-        setIsSubmitDisabled(false);
-        setResponseMessage("");
-      } else {
-        setSubscriptionICCIDExpiry(iccidExpDate);
-        setIsSubmitDisabled(true);
-        setResponseMessage(
-          "Invalid Data in Excel sheet. Please Upload a Valid Excel Sheet."
+        // Utility function to parse and validate expiry date in dd/mm/yyyy format
+        const parseExpiryDate = (rawDate) => {
+          const dateString = formatDate(rawDate);
+
+          if (typeof dateString === "string") {
+            const dateParts = dateString.split("/");
+            if (dateParts.length === 3) {
+              const [day, month, year] = dateParts.map((part) =>
+                parseInt(part, 10)
+              );
+              if (
+                !isNaN(day) &&
+                !isNaN(month) &&
+                !isNaN(year) &&
+                day > 0 &&
+                day <= 31 &&
+                month > 0 &&
+                month <= 12 &&
+                year > 1000 &&
+                year <= 9999
+              ) {
+                const formattedDate = moment(dateString, "DD/MM/YYYY", true);
+                if (formattedDate.isValid()) {
+                  return formattedDate.format("DD/MM/YYYY");
+                }
+              }
+            }
+          }
+          return null;
+        };
+
+        // Process rows and validate
+        const iccidExpDate = rows.slice(1).map((row) => {
+          const [rawICCID, rawDate] = row;
+
+          const iccid = parseICCID(rawICCID);
+          let expiryDate = parseExpiryDate(rawDate);
+          let isValidDate = !!expiryDate;
+
+          // Validate expiry date is not in the past
+          if (isValidDate && moment(expiryDate, "DD/MM/YYYY").isBefore(today)) {
+            expiryDate = null;
+            isValidDate = false;
+          }
+
+          return { iccid, expiryDate, isValidDate, rawDate };
+        });
+
+        // Check if all rows are valid
+        const isValid = iccidExpDate.every(
+          (item) => item.iccid && item.isValidDate
         );
-      }
-    });
+
+        // Update state based on validation
+        setSubscriptionICCIDExpiry(iccidExpDate);
+        setIsSubmitDisabled(!isValid);
+        setResponseMessage(
+          isValid
+            ? ""
+            : "Invalid Data in Excel sheet. Please Upload a Valid Excel Sheet."
+        );
+      })
+      .catch((error) => {
+        // Handle file reading errors
+        setResponseMessage("Error reading Excel file. Please try again.");
+        console.error("Error reading Excel file:", error);
+      });
   };
 
   const handleClose = () => {
@@ -343,7 +372,7 @@ export default function ImportExcel({
                           >
                             {val.iccid || val.iccidNo || "Invalid ICCID"}
                           </TableCell>
-                          <TableCell
+                          {/* <TableCell
                             style={{
                               color:
                                 val.hasOwnProperty("expiryDate") &&
@@ -364,7 +393,33 @@ export default function ImportExcel({
                             ) : (
                               <span>Invalid Date</span>
                             )}
+                          </TableCell> */}
+                          <TableCell
+                            style={{
+                              color:
+                                val.hasOwnProperty("expiryDate") &&
+                                !val?.expiryDate
+                                  ? "red"
+                                  : val.hasOwnProperty("newExpiryDate") &&
+                                    !val?.newExpiryDate
+                                  ? "red"
+                                  : "",
+                            }}
+                          >
+                            {val.expiryDate ? (
+                              moment(val.expiryDate, "DD/MM/YYYY").format(
+                                "DD-MM-YYYY"
+                              )
+                            ) : val.newExpiryDate ? (
+                              moment(val.newExpiryDate).format("DD-MM-YYYY")
+                            ) : (
+                              <span>
+                                Invalid Date
+                                {val.rawDate ? ` (${val.rawDate})` : ""}
+                              </span>
+                            )}
                           </TableCell>
+
                           {hasUpdatedProperty && (
                             <TableCell>
                               {val.updated === true
