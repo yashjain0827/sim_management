@@ -138,7 +138,7 @@ export default function ImportExcel({
 
         let expiryDate;
         let isValidDate = true;
-        // let validationMessage = "";
+        let validationMessage = "";
 
         let iccid;
 
@@ -151,7 +151,7 @@ export default function ImportExcel({
         if (rawDate === null || rawDate === undefined) {
           expiryDate = null;
           isValidDate = false;
-          setDateValidationMessages("Empty date");
+          validationMessage = "Empty date";
         } else if (moment(rawDate, "DD/MM/YY", true).isValid()) {
           expiryDate = moment(rawDate, "DD/MM/YY").format("DD/MM/YYYY");
         } else if (moment(rawDate, "DD/MM/YYYY", true).isValid()) {
@@ -165,20 +165,20 @@ export default function ImportExcel({
         } else {
           expiryDate = rawDate;
           isValidDate = false;
-          setDateValidationMessages("Invalid date");
+          validationMessage = "Invalid date";
         }
 
         if (isValidDate && moment(expiryDate, "DD/MM/YYYY").isBefore(today)) {
           expiryDate = expiryDate;
           isValidDate = false;
-          setDateValidationMessages("Date Before Today");
+          validationMessage = "Date Before Today";
         }
 
         return {
           iccid,
           expiryDate,
           isValidDate,
-          // dateValidationMessages,
+          validationMessage,
         };
       });
 
