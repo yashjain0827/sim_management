@@ -12,7 +12,10 @@ async function importExcel(payload) {
     const apiEndPoint = `${config.baseUrl}${config.apiName.simImportExcel}`;
     const response = await userService.post(apiEndPoint, payload);
     if (
-      (response && response.data && response.data.responseCode === 200) ||
+      (response &&
+        response.data &&
+        (response.data.responseCode === 200 ||
+          response.data.responseCode === 206)) ||
       response.data.responseCode === 201
     ) {
       return {
