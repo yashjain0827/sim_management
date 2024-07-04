@@ -42,9 +42,6 @@ export default function ImportExcel({
   const [reqCode, setReqCode] = React.useState("");
   const [isSubmitDisabled, setIsSubmitDisabled] = React.useState(true);
   const [isFileUploaded, setIsFileUploaded] = React.useState(false);
-  const [dateValidationMessages, setDateValidationMessages] = React.useState(
-    []
-  );
 
   const loggedInUserData = JSON.parse(localStorage.getItem("data"));
 
@@ -57,7 +54,6 @@ export default function ImportExcel({
     setReqCode("");
     setIsSubmitDisabled(true);
     setIsFileUploaded(false);
-    setDateValidationMessages([]);
   };
 
   const handleDone = () => {
@@ -70,7 +66,6 @@ export default function ImportExcel({
     setIsSubmitDisabled(true);
     setNewRequestAdded((prev) => !prev);
     setIsFileUploaded(false);
-    setDateValidationMessages([]);
   };
 
   const iccidChangeExpiryDate = () => {
@@ -152,6 +147,10 @@ export default function ImportExcel({
           expiryDate = null;
           isValidDate = false;
           validationMessage = "Empty date";
+        } else if (typeof rawDate === "string" && isNaN(Date.parse(rawDate))) {
+          expiryDate = rawDate;
+          isValidDate = false;
+          validationMessage = "Invalid date";
         } else if (moment(rawDate, "DD/MM/YY", true).isValid()) {
           expiryDate = moment(rawDate, "DD/MM/YY").format("DD/MM/YYYY");
         } else if (moment(rawDate, "DD/MM/YYYY", true).isValid()) {
@@ -199,11 +198,6 @@ export default function ImportExcel({
           "Invalid Data in Excel sheet. Please Upload a Valid Excel Sheet."
         );
       }
-
-      // const validationMessages = iccidExpDate.map(
-      //   (item) => item.validationMessage
-      // );
-      // setDateValidationMessages(validationMessages);
     });
   };
 
@@ -216,7 +210,6 @@ export default function ImportExcel({
     setReqCode("");
     setIsSubmitDisabled(true);
     setIsFileUploaded(false);
-    setDateValidationMessages([]);
   };
 
   const hasUpdatedProperty = subscriptionICCIDExpiry.some((item) =>
@@ -397,7 +390,7 @@ export default function ImportExcel({
                                   : "",
                             }}
                           >
-                            {val.expiryDate ? (
+                            {/* {val.expiryDate ? (
                               <>
                                 {moment(val.expiryDate, "DD/MM/YYYY").format(
                                   "DD-MM-YYYY"
@@ -406,6 +399,34 @@ export default function ImportExcel({
                                   <span> ({val.validationMessage})</span>
                                 )}
                               </>
+                            ) : val.newExpiryDate ? (
+                              moment(val.newExpiryDate).format("DD-MM-YYYY")
+                            ) : (
+                              <span>{val.validationMessage}</span>
+                            )} */}
+
+                            {val.expiryDate ? (
+                              moment(
+                                val.expiryDate,
+                                "DD/MM/YYYY",
+                                true
+                              ).isValid() ? (
+                                <>
+                                  {moment(val.expiryDate, "DD/MM/YYYY").format(
+                                    "DD-MM-YYYY"
+                                  )}
+                                  {val.validationMessage && (
+                                    <span> ({val.validationMessage})</span>
+                                  )}
+                                </>
+                              ) : (
+                                <>
+                                  {val.expiryDate}
+                                  {val.validationMessage && (
+                                    <span> ({val.validationMessage})</span>
+                                  )}
+                                </>
+                              )
                             ) : val.newExpiryDate ? (
                               moment(val.newExpiryDate).format("DD-MM-YYYY")
                             ) : (
