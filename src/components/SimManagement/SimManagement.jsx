@@ -31,6 +31,7 @@ import debounce from "lodash/debounce";
 import { styled } from "@mui/material/styles";
 import ImportExcel from "./ImportExcel";
 import { SimManagementAction } from "../actions/simManagement";
+import moment from "moment";
 
 const theme = createTheme({
   palette: {
@@ -50,78 +51,6 @@ const StyledTableCell = styled(TableCell)(({ theme }) => ({
   backgroundColor: "rgb(14 57 115 / 86%)",
   color: "white",
 }));
-
-function todateconvertISTtoUTC(date) {
-  let istDate = new Date(date);
-  let istOffset = 18 * 60 * 60 * 1000 + 29 * 60 * 1000 + 59 * 1000;
-  let utcDate = new Date(istDate.getTime() + istOffset);
-  return utcDate.getTime();
-}
-function fromdateconvertISTtoUTC(date) {
-  let istDate = new Date(date);
-  let istOffset = 5 * 60 * 60 * 1000 + 30 * 60 * 1000;
-  let utcDate = new Date(istDate.getTime() - istOffset);
-  return utcDate.getTime();
-}
-
-const fetchRequests = async (page, rowsPerPage, searchParams) => {
-  console.log("Current searchParams:", searchParams);
-  const fromdate = searchParams.fromdate
-    ? fromdateconvertISTtoUTC(new Date(searchParams.fromdate))
-    : 0;
-  const todate = searchParams.todate
-    ? todateconvertISTtoUTC(new Date(searchParams.todate))
-    : 0;
-
-  try {
-    const payload = {
-      pageNo: page,
-      pageSize: rowsPerPage,
-      fromDate: fromdate,
-      toDate: todate,
-      search: searchParams.requestcode.trim(),
-    };
-    console.log("payload:", payload);
-    const response = await SimManagementAction.getAllSimManagement(payload);
-    return response;
-  } catch (error) {
-    console.error("Error fetching data", error);
-    throw error;
-  }
-};
-
-const fetchRequestDetails = async (requestId) => {
-  try {
-    const response = await SimManagementAction.getSimManagementDetails(
-      requestId
-    );
-    return response;
-  } catch (error) {
-    console.error("Error fetching request details", error);
-    throw error;
-  }
-};
-
-const ExportButtons = ({ index, onExcelDownload, onPdfDownload }) => (
-  <>
-    <Tooltip title="Export Excel" arrow>
-      <IconButton
-        onClick={() => onExcelDownload(index)}
-        aria-label="Export to Excel"
-      >
-        <img src={exportExcelIcon} alt="Export to Excel" />
-      </IconButton>
-    </Tooltip>
-    <Tooltip title="Export PDF" arrow>
-      <IconButton
-        onClick={() => onPdfDownload(index)}
-        aria-label="Export to PDF"
-      >
-        <img src={exportPdfIcon} alt="Export to PDF" />
-      </IconButton>
-    </Tooltip>
-  </>
-);
 
 const DetailRow = ({ detail, detailIndex, searchParams }) => {
   const trimmedSearchParams = searchParams.trim();
@@ -144,26 +73,6 @@ const DetailRow = ({ detail, detailIndex, searchParams }) => {
     </TableRow>
   );
 };
-const formatDateTime = (utcDateTime) => {
-  const date = new Date(utcDateTime);
-
-  const offsetInMinutes = date.getTimezoneOffset() + 330;
-  date.setMinutes(date.getMinutes() + offsetInMinutes);
-
-  const day = String(date.getDate()).padStart(2, "0");
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const year = date.getFullYear();
-
-  let hours = date.getHours();
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-  const ampm = hours >= 12 ? "PM" : "AM";
-  hours = hours % 12;
-  hours = hours ? hours : 12;
-  const formattedTime = `${hours}:${minutes} ${ampm}`;
-
-  const formattedDate = `${day}/${month}/${year}`;
-  return `${formattedDate} ${formattedTime}`;
-};
 
 const RequestRow = ({
   row,
@@ -180,14 +89,31 @@ const RequestRow = ({
       <TableCell>{index + 1}</TableCell>
       <TableCell>{row.requestCode}</TableCell>
       <TableCell>{row.totalDevices}</TableCell>
-      <TableCell>{formatDateTime(row.requestDate)}</TableCell>
+      <TableCell>
+        {moment(row.requestDate)
+          .utcOffset("+05:30")
+          .format("DD/MM/YYYY hh:mm A")}
+      </TableCell>
       <TableCell>{row.createdBy}</TableCell>
       <TableCell>
-        <ExportButtons
-          index={index}
-          onExcelDownload={onExcelDownload}
-          onPdfDownload={onPdfDownload}
-        />
+        <>
+          <Tooltip title="Export Excel" arrow>
+            <IconButton
+              onClick={() => onExcelDownload(index)}
+              aria-label="Export to Excel"
+            >
+              <img src={exportExcelIcon} alt="Export to Excel" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Export PDF" arrow>
+            <IconButton
+              onClick={() => onPdfDownload(index)}
+              aria-label="Export to PDF"
+            >
+              <img src={exportPdfIcon} alt="Export to PDF" />
+            </IconButton>
+          </Tooltip>
+        </>
       </TableCell>
       <TableCell>
         <IconButton
@@ -235,8 +161,8 @@ const exportToExcel = (data) => {
     data.devices.map((detail) => ({
       "Device IMEI": detail.imeiNo,
       ICCID: detail.iccidNo,
-      "Old Exp Date": new Date(detail.oldExpiryDate).toLocaleDateString(),
-      "New Exp Date": new Date(detail.newExpiryDate).toLocaleDateString(),
+      "Old Exp Date": moment(detail.oldExpiryDate).format("DD/MM/YYYY"),
+      "New Exp Date": moment(detail.newExpiryDate).format("DD/MM/YYYY"),
     }))
   );
   const wb = XLSX.utils.book_new();
@@ -252,7 +178,13 @@ const exportToPdf = (data) => {
   const doc = new jsPDF();
   doc.text(`Request Code: ${data.requestCode}`, 10, 10);
   doc.text(`Total Device: ${data.totalDevices}`, 10, 20);
-  doc.text(`Renew Date: ${formatDateTime(data.requestDate)}`, 10, 30);
+  doc.text(
+    `Renew Date: ${moment(data.requestDate)
+      .utcOffset("+05:30")
+      .format("DD/MM/YYYY hh:mm A")}`,
+    10,
+    30
+  );
   doc.text(`Renewed By: ${data.createdBy}`, 10, 40);
 
   const tableColumn = [
@@ -266,8 +198,8 @@ const exportToPdf = (data) => {
     index + 1,
     detail.imeiNo,
     detail.iccidNo,
-    new Date(detail.oldExpiryDate).toLocaleDateString(),
-    new Date(detail.newExpiryDate).toLocaleDateString(),
+    moment(detail.oldExpiryDate).format("DD/MM/YYYY"),
+    moment(detail.newExpiryDate).format("DD/MM/YYYY"),
   ]);
 
   doc.autoTable(tableColumn, tableRows, { startY: 50 });
@@ -275,24 +207,15 @@ const exportToPdf = (data) => {
 };
 
 export default function SimManagement() {
-  const formatDateForInput = (date) => {
-    const d = new Date(date);
-    const month = `${d.getMonth() + 1}`.padStart(2, "0");
-    const day = `${d.getDate()}`.padStart(2, "0");
-    const year = d.getFullYear();
-    return `${year}-${month}-${day}`;
-  };
   const [openRowIndex, setOpenRowIndex] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filteredRequests, setFilteredRequests] = useState([]);
   const [details, setDetails] = useState([]);
-
   const [searchParams, setSearchParams] = useState({
     fromdate: "",
-    todate: formatDateForInput(new Date()),
+    todate: moment(new Date()).format("YYYY-MM-DD"),
     requestcode: "",
   });
-
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(5);
   const [totalItem, setTotalItem] = useState(0);
@@ -313,48 +236,69 @@ export default function SimManagement() {
     } else {
       setLoading(true);
       try {
-        const data = await fetchRequestDetails(requestId);
+        const data = await SimManagementAction.getSimManagementDetails(
+          requestId
+        );
         const updatedDetails = [...details];
         updatedDetails[index] = data.data;
 
         setDetails(updatedDetails);
         setOpenRowIndex(index);
+        setLoading(false);
       } catch (error) {
         console.error("Error fetching request details", error);
-      } finally {
         setLoading(false);
       }
     }
   };
 
-  const debouncedFetchRequests = useCallback(
-    debounce(async (page, rowsPerPage, searchParams) => {
-      setLoading(true);
-      try {
-        const data = await fetchRequests(page, rowsPerPage, searchParams);
-        setFilteredRequests(data?.items || []);
-        setTotalItem(data?.totalItems || 0);
-      } catch (error) {
-        console.error("Error fetching data", error);
-      } finally {
-        setLoading(false);
-      }
-    }, 500),
-    []
-  );
+  function todateconvertISTtoUTC(date) {
+    let istDate = new Date(date);
+    let istOffset = 18 * 60 * 60 * 1000 + 29 * 60 * 1000 + 59 * 1000;
+    let utcDate = new Date(istDate.getTime() + istOffset);
+    return utcDate.getTime();
+  }
+
+  function fromdateconvertISTtoUTC(date) {
+    let istDate = new Date(date);
+    let istOffset = 5 * 60 * 60 * 1000 + 30 * 60 * 1000;
+    let utcDate = new Date(istDate.getTime() - istOffset);
+    return utcDate.getTime();
+  }
+
+  const fetchData = async (page, rowsPerPage, searchParams) => {
+    setLoading(true);
+    const fromdate = searchParams.fromdate
+      ? fromdateconvertISTtoUTC(new Date(searchParams.fromdate))
+      : 0;
+    const todate = searchParams.todate
+      ? todateconvertISTtoUTC(new Date(searchParams.todate))
+      : 0;
+
+    try {
+      const payload = {
+        pageNo: page,
+        pageSize: rowsPerPage,
+        fromDate: fromdate,
+        toDate: todate,
+        search: searchParams.requestcode.trim(),
+      };
+      const response = await SimManagementAction.getAllSimManagement(payload);
+      setFilteredRequests(response?.items || []);
+      setTotalItem(response?.totalItems || 0);
+    } catch (error) {
+      console.error("Error fetching data", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    debouncedFetchRequests(page, rowsPerPage, searchParams);
+    fetchData(page, rowsPerPage, searchParams);
     if (openRowIndex !== null) {
       setOpenRowIndex(null);
     }
-  }, [
-    page,
-    rowsPerPage,
-    searchParams,
-    debouncedFetchRequests,
-    newRequestAdded,
-  ]);
+  }, [page, rowsPerPage, searchParams, newRequestAdded]);
 
   const handleSearchChange = (e) => {
     const { name, value } = e.target;
@@ -363,25 +307,32 @@ export default function SimManagement() {
       [name]: value,
     }));
     setPage(0);
-    debouncedFetchRequests(0, rowsPerPage, { ...searchParams, [name]: value });
   };
+
+  const debouncedHandleSearchChange = debounce((value) => {
+    setSearchParams((prevParams) => ({
+      ...prevParams,
+      requestcode: value,
+    }));
+    setPage(0);
+  }, 1000);
 
   const handleChangePage = (event, newPage) => {
     setPage(newPage);
-    debouncedFetchRequests(newPage, rowsPerPage, searchParams);
   };
 
   const handleChangeRowsPerPage = (event) => {
     const newRowsPerPage = parseInt(event.target.value, 10);
     setRowsPerPage(newRowsPerPage);
     setPage(0);
-    debouncedFetchRequests(0, newRowsPerPage, searchParams);
   };
 
   const handleExcelDownload = async (index) => {
     const requestData = filteredRequests[index];
     if (requestData) {
-      const detailsData = await fetchRequestDetails(requestData.requestId);
+      const detailsData = await SimManagementAction.getSimManagementDetails(
+        requestData.requestId
+      );
       exportToExcel({ ...requestData, devices: detailsData.data });
     }
   };
@@ -389,7 +340,9 @@ export default function SimManagement() {
   const handlePdfDownload = async (index) => {
     const requestData = filteredRequests[index];
     if (requestData) {
-      const detailsData = await fetchRequestDetails(requestData.requestId);
+      const detailsData = await SimManagementAction.getSimManagementDetails(
+        requestData.requestId
+      );
       exportToPdf({ ...requestData, devices: detailsData.data });
     }
   };
@@ -449,8 +402,9 @@ export default function SimManagement() {
                     <TextField
                       name="requestcode"
                       label="Request Code/IMEI Number	"
-                      value={searchParams.requestcode}
-                      onChange={handleSearchChange}
+                      onChange={(e) =>
+                        debouncedHandleSearchChange(e.target.value)
+                      }
                       fullWidth
                     />
                   </Grid>
