@@ -42,6 +42,9 @@ export default function ImportExcel({
   const [reqCode, setReqCode] = React.useState("");
   const [isSubmitDisabled, setIsSubmitDisabled] = React.useState(true);
   const [isFileUploaded, setIsFileUploaded] = React.useState(false);
+  const [validDateFormat, setValidDateFormat] = React.useState(
+    moment(new Date("05/08/2024")).format("DD/MM/YYYY")
+  );
 
   const loggedInUserData = JSON.parse(localStorage.getItem("data"));
 
@@ -68,12 +71,17 @@ export default function ImportExcel({
     setIsFileUploaded(false);
   };
 
+  function convertDateFormat(dateStr) {
+    const dateParts = dateStr.split("/");
+    const formattedDate = dateParts.join("-");
+
+    return formattedDate;
+  }
+
   const iccidChangeExpiryDate = () => {
     const data = subscriptionICCIDExpiry.map((item) => ({
       iccidNo: item.iccid,
-      date: item.isValidDate
-        ? moment(item.expiryDate, "DD/MM/YYYY").format("DD-MM-YYYY")
-        : null,
+      date: item.isValidDate ? convertDateFormat(item.expiryDate) : null,
     }));
 
     const payload = {
@@ -85,7 +93,7 @@ export default function ImportExcel({
 
     SimManagementAction.importExcel(payload).then((response) => {
       if (response !== null && response.data) {
-        console.log(response);
+        // console.log(response);
         setShow(true);
         setSubscriptionICCIDExpiry(response.data || []);
         setResponseMessage(response.message);
@@ -103,6 +111,58 @@ export default function ImportExcel({
       }
       setLoading(false);
     });
+  };
+
+  // const getDateFormatPattern = (dateStr) => {
+  //   if (typeof dateStr !== "string") {
+  //     return "";
+  //   }
+
+  //   const dayPattern = /(?:^|\D)(\d{2})(?:\D|$)/;
+  //   const monthPattern = /(?:^|\D)(\d{2})(?:\D|$)/;
+  //   const yearPattern = /(?:^|\D)(\d{4})(?:\D|$)/;
+
+  //   const dayMatch = dateStr.match(dayPattern);
+  //   const monthMatch = dateStr.match(monthPattern);
+  //   const yearMatch = dateStr.match(yearPattern);
+
+  //   let pattern = "";
+
+  //   if (dayMatch && monthMatch && yearMatch) {
+  //     const dayIndex = dateStr.indexOf(dayMatch[1]);
+  //     const monthIndex = dateStr.indexOf(monthMatch[1]);
+  //     const yearIndex = dateStr.indexOf(yearMatch[1]);
+
+  //     const indexes = [
+  //       { type: "DD", index: dayIndex },
+  //       { type: "MM", index: monthIndex },
+  //       { type: "YYYY", index: yearIndex },
+  //     ];
+
+  //     indexes.sort((a, b) => a.index - b.index);
+
+  //     pattern = indexes.map((item) => item.type).join("-");
+  //   }
+
+  //   return pattern;
+  // };
+
+  // const isSameDateFormat = (date1, date2) => {
+  //   const format1 = getDateFormatPattern(date1);
+  //   const format2 = getDateFormatPattern(date2);
+  //   if (format1 === format2) {
+  //     return true;
+  //   } else {
+  //     return false;
+  //   }
+  // };
+
+  const validateDateFormat = (dateString) => {
+    // console.log("dateString :", dateString);
+    const regex = /^\d{2}\/\d{2}\/\d{4}$/;
+    console.log("Test Result:", regex.test(dateString));
+
+    return regex.test(dateString);
   };
 
   const onFileChange = (event) => {
@@ -128,8 +188,12 @@ export default function ImportExcel({
     readXlsxFile(inputFile).then((rows) => {
       const today = moment().startOf("day");
       const iccidExpDate = rows.slice(1).map((row) => {
+        console.log("iccidExpDate: ", row);
         let rawICCID = row[0];
         let rawDate = row[1];
+        // let rawDate = moment(new Date(row[1])).format("DD/MM/YYYY");
+
+        console.log("raw date", rawDate);
 
         let expiryDate;
         let isValidDate = true;
@@ -143,36 +207,26 @@ export default function ImportExcel({
           iccid = rawICCID?.trim();
         }
 
-        if (rawDate === null || rawDate === undefined) {
-          expiryDate = null;
-          isValidDate = false;
-          validationMessage = "Empty date";
-        } else if (typeof rawDate === "string" && isNaN(Date.parse(rawDate))) {
+        // debugger;
+
+        if (validateDateFormat(rawDate) === true) {
+          isValidDate = true;
           expiryDate = rawDate;
-          isValidDate = false;
-          validationMessage = "Invalid date";
-        } else if (moment(rawDate, "DD/MM/YY", true).isValid()) {
-          expiryDate = moment(rawDate, "DD/MM/YY").format("DD/MM/YYYY");
-        } else if (moment(rawDate, "DD/MM/YYYY", true).isValid()) {
-          expiryDate = moment(rawDate, "DD/MM/YYYY").format("DD/MM/YYYY");
-        } else if (rawDate instanceof Date && !isNaN(rawDate)) {
-          expiryDate = moment(rawDate).format("DD/MM/YYYY");
-        } else if (typeof rawDate === "number") {
-          expiryDate = moment(
-            new Date(Math.round((rawDate - 25569) * 86400 * 1000))
-          ).format("DD/MM/YYYY");
+          // expiryDate = moment(rawDate).format("DD/MM/YYYY");
         } else {
-          expiryDate = rawDate;
           isValidDate = false;
-          validationMessage = "Invalid date";
+          validationMessage = "Invalid Date";
+          expiryDate = rawDate;
         }
 
+        // debugger;
         if (isValidDate && moment(expiryDate, "DD/MM/YYYY").isBefore(today)) {
           expiryDate = expiryDate;
           isValidDate = false;
           validationMessage = "Date Before Today";
         }
 
+        // console.log(iccid, expiryDate, isValidDate, validationMessage);
         return {
           iccid,
           expiryDate,
@@ -215,6 +269,8 @@ export default function ImportExcel({
   const hasUpdatedProperty = subscriptionICCIDExpiry.some((item) =>
     item.hasOwnProperty("updated")
   );
+
+  // console.log(subscriptionICCIDExpiry);
 
   return (
     <div>
@@ -390,6 +446,21 @@ export default function ImportExcel({
                                   : "",
                             }}
                           >
+                            {val.isValidDate && val.expiryDate ? (
+                              <>{val.expiryDate}</>
+                            ) : val.validationMessage ? (
+                              <>
+                                {val.expiryDate}
+                                <span> ({val.validationMessage})</span>
+                              </>
+                            ) : val.newExpiryDate ? (
+                              <>
+                                {moment(val.newExpiryDate).format("DD/MM/YYYY")}
+                              </>
+                            ) : (
+                              "NA"
+                            )}
+
                             {/* {val.expiryDate ? (
                               <>
                                 {moment(val.expiryDate, "DD/MM/YYYY").format(
@@ -405,15 +476,13 @@ export default function ImportExcel({
                               <span>{val.validationMessage}</span>
                             )} */}
 
-                            {val.expiryDate ? (
+                            {/* {val.expiryDate ? (
                               moment(
-                                val.expiryDate,
-                                "DD/MM/YYYY",
-                                true
+                                new Date(val.expiryDate).format("DD/MM/YYYY")
                               ).isValid() ? (
                                 <>
-                                  {moment(val.expiryDate, "DD/MM/YYYY").format(
-                                    "DD-MM-YYYY"
+                                  {moment(new Date(val.expiryDate)).format(
+                                    "DD/MM/YYYY"
                                   )}
                                   {val.validationMessage && (
                                     <span> ({val.validationMessage})</span>
@@ -421,17 +490,21 @@ export default function ImportExcel({
                                 </>
                               ) : (
                                 <>
-                                  {val.expiryDate}
+                                  {new Date(val.expiryDate).format(
+                                    "DD/MM/YYYY"
+                                  )}
                                   {val.validationMessage && (
                                     <span> ({val.validationMessage})</span>
                                   )}
                                 </>
                               )
                             ) : val.newExpiryDate ? (
-                              moment(val.newExpiryDate).format("DD-MM-YYYY")
+                              moment(new Date(val.newExpiryDate)).format(
+                                "DD/MM/YYYY"
+                              )
                             ) : (
                               <span>{val.validationMessage}</span>
-                            )}
+                            )} */}
                           </TableCell>
 
                           {hasUpdatedProperty && (
